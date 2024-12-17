@@ -3,7 +3,7 @@ package lab2
 import chisel3._
 import chisel3.util._
 
-class SevenSegment extends Module {
+class Decode37 extends Module {
   val io = IO(new Bundle {
     val x = Input(UInt(3.W))
     val y = Output(UInt(7.W))
@@ -31,9 +31,9 @@ class SevenSegment extends Module {
 
 import _root_.circt.stage.ChiselStage
 
-object SevenSegment extends App {
+object Decode37 extends App {
   ChiselStage.emitSystemVerilogFile(
-    new SevenSegment,
+    new Decode37,
     args = Array("--target-dir", "generated"),
     firtoolOpts = Array("-disable-all-randomization", "-strip-debug-info")
   )
