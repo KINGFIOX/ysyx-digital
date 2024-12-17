@@ -36,6 +36,7 @@ import _root_.circt.stage.ChiselStage
 object Mux4 extends App {
   ChiselStage.emitSystemVerilogFile(
     new Mux4,
+    args = Array("--target-dir", "generated"),
     firtoolOpts = Array("-disable-all-randomization", "-strip-debug-info")
   )
 }
