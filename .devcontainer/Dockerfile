@@ -8,5 +8,6 @@ RUN curl -s "https://get.sdkman.io" | bash \
 
 RUN dnf install -y git
 RUN mkdir -p /workspace
+RUN dnf install -y verilator clangd
 
 WORKDIR /workspace
