@@ -9,5 +9,6 @@ RUN curl -s "https://get.sdkman.io" | bash \
 RUN dnf install -y git
 RUN mkdir -p /workspace
 RUN dnf install -y verilator clangd
-
+RUN dnf install -y SDL2-devel SDL2_image-devel SDL2_ttf-devel
 WORKDIR /workspace
+ENV NVBOARD_HOME=/workspace/nvboard
