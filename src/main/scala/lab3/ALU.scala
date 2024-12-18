@@ -7,7 +7,7 @@ class ALU extends Module {
   val io = IO(new Bundle {
     val a = Input(UInt(4.W))
     val b = Input(UInt(4.W))
-    val x = Input(UInt(4.W))
+    val x = Output(UInt(4.W))
     val op = Input(UInt(3.W))
   })
 
@@ -22,5 +22,15 @@ class ALU extends Module {
       (io.op === "b101".U, io.a < io.b),
       (io.op === "b110".U, io.a === io.b)
     )
+  )
+}
+
+import _root_.circt.stage.ChiselStage
+
+object ALU extends App {
+  ChiselStage.emitSystemVerilogFile(
+    new ALU,
+    args = Array("--target-dir", "generated"),
+    firtoolOpts = Array("-disable-all-randomization", "-strip-debug-info")
   )
 }
