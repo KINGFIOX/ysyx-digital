@@ -7,11 +7,11 @@ class Keyboard extends Module {
   val io = IO(new Bundle {
     val data = Input(UInt(8.W))
     val valid = Input(Bool())
-    val overflow = Input(Bool())
     val keycode = Output(UInt(8.W))
     val ascii = Output(UInt(7.W))
     val count = Output(UInt(8.W))
     val ready = Output(Bool())
+    val nextdata = Output(Bool())
   })
 
   val counter = Counter(0xff)
@@ -27,6 +27,7 @@ class Keyboard extends Module {
   io.keycode := keycode
   val kc_ascii = Reg(UInt(8.W)) // keycode to ascii
   io.ascii := KeycodeToAscii(kc_ascii)
+  io.nextdata := true.B
 
   when(io.valid) {
     switch(state) {

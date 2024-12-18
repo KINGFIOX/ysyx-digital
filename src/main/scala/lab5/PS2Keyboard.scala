@@ -5,7 +5,7 @@ import chisel3.util._
 
 class PS2Keyboard extends BlackBox with HasBlackBoxResource {
   val io = IO(new Bundle {
-    val clk = Input(Bool())
+    val clk = Input(Clock())
     val clr_n = Input(Bool())
     val ps2_clk = Input(Bool())
     val ps2_data = Input(Bool())
