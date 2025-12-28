@@ -1,0 +1,12 @@
+*.*
+*
+!*/
+!Makefile
+!*.v
+!*.cpp
+!*.nxdc
+!.gitignore
+!README.md
+!/lab2
+obj_dir
+
