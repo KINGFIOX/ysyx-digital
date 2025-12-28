@@ -14,5 +14,8 @@
 #**************************************************************************************/
 
 NAME = gen-expr
-SRCS = gen-expr.c
+# 直接复用 sdb 的 lexer/parser 与 stub，将 expr_eval 链接进来对比验证
+SRCS = gen-expr.c ../../src/monitor/sdb/expr.lex.c ../../src/monitor/sdb/expr.tab.c expr-stub.c
+# 需要头文件：把 NEMU 顶层 include 目录加入搜索路径
+INC_PATH += $(NEMU_HOME)/include
 include $(NEMU_HOME)/scripts/build.mk
