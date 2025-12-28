@@ -1,0 +1,5 @@
+top = bcd7seg
+
+h (SEG0A, SEG0B, SEG0C, SEG0D, SEG0E, SEG0F, SEG0G)
+b (SW3, SW2, SW1, SW0)
+en (SW4)
