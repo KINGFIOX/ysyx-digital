@@ -10,3 +10,8 @@
 !Kconfig
 include/config
 include/generated
+!/src/monitor/sdb/expr.l
+!/src/monitor/sdb/expr.y
+/src/monitor/sdb/expr.tab.c
+/src/monitor/sdb/expr.lex.c
+/src/monitor/sdb/expr.tab.h

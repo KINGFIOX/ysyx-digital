@@ -33,12 +33,21 @@ NAME    = $(GUEST_ISA)-nemu-$(ENGINE)
 FILELIST_MK = $(shell find -L ./src -name "filelist.mk")
 include $(FILELIST_MK)
 
+# Flex/Bison sources and generated files
+LEX_SRC  := src/monitor/sdb/expr.l
+YACC_SRC := src/monitor/sdb/expr.y
+LEX_GEN  := $(LEX_SRC:.l=.lex.c)
+YACC_GEN := $(YACC_SRC:.y=.tab.c)
+YACC_HDR := $(YACC_SRC:.y=.tab.h)
+SRCS-y   += $(LEX_GEN) $(YACC_GEN)
+
 # Filter out directories and files in blacklist to obtain the final set of source files
 DIRS-BLACKLIST-y += $(DIRS-BLACKLIST)
 SRCS-BLACKLIST-y += $(if $(DIRS-BLACKLIST-y), $(shell find -L $(DIRS-BLACKLIST-y) -name "*.c"),)
 SRCS-BLACKLIST-y += $(SRCS-BLACKLIST)
 SRCS-y += $(if $(DIRS-y), $(shell find -L $(DIRS-y) -name "*.c"),)
 SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
+SRCS := $(sort $(SRCS))
 
 # Extract compiler and options from menuconfig
 ifneq ($(CONFIG_CC),)
@@ -61,4 +70,21 @@ LINKAGE += $(ARCHIVES)
 else
 # Include rules to build NEMU
 include $(NEMU_HOME)/scripts/native.mk
+
+# Generate parser/lexer sources
+$(YACC_GEN) $(YACC_HDR): $(YACC_SRC)
+	@echo + BISON $<
+	@bison -d -o $(YACC_GEN) $(YACC_SRC)
+
+$(LEX_GEN): $(LEX_SRC) $(YACC_HDR)
+	@echo + FLEX $<
+	@flex -o $(LEX_GEN) $(LEX_SRC)
 endif
+
+# 清理生成的词法/语法文件
+clean: clean-lex-yacc
+
+.PHONY: clean-lex-yacc
+clean-lex-yacc:
+	@rm -f $(LEX_GEN) $(YACC_GEN) $(YACC_HDR)
+

@@ -18,6 +18,12 @@
 
 #include <common.h>
 
-word_t expr(char *e, bool *success);
+word_t expr_eval(const char *expr, bool *success);
+void init_regex(void);
+void init_wp_pool(void);
+int add_watchpoint(const char *expr);
+bool delete_watchpoint(int no);
+void list_watchpoints(void);
+bool check_watchpoints(void);
 
 #endif

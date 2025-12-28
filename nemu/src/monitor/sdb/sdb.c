@@ -15,9 +15,11 @@
 
 #include <isa.h>
 #include <cpu/cpu.h>
+#include <memory/vaddr.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+#include "utils.h"
 
 static int is_batch_mode = false;
 
@@ -49,22 +51,126 @@ static int cmd_c(char *args) {
 
 
 static int cmd_q(char *args) {
+  nemu_state.state = NEMU_QUIT;
   return -1;
 }
 
+static int cmd_si(char *args) {
+  int steps = 1; // 缺省为1
+  if (args != NULL) {
+    steps = strtol(args, NULL, 0);
+    if (steps <= 0) {
+      printf("invalid number of steps: %s\n", args);
+      return 0;
+    }
+  }
+  cpu_exec(steps);
+  return 0;
+}
+
+static int cmd_info(char *args);
+
+static int cmd_x(char *args) {
+  if (args == NULL) {
+    printf("usage: x N EXPR\n");
+    return 0;
+  }
+
+  char *n_str = strtok(args, " ");
+  char *expr_str = strtok(NULL, "");
+  if (n_str == NULL || expr_str == NULL) {
+    printf("usage: x N EXPR\n");
+    return 0;
+  }
+
+  int n = strtol(n_str, NULL, 0);
+  if (n <= 0) {
+    printf("invalid number of times: %s\n", n_str);
+    return 0;
+  }
+
+  bool success = false;
+  vaddr_t addr = expr_eval(expr_str, &success);
+  if (!success) {
+    printf("expression evaluation failed\n");
+    return 0;
+  }
+
+  for (int i = 0; i < n; i++) {
+    vaddr_t cur = addr + i * sizeof(word_t);
+    word_t val = vaddr_read(cur, sizeof(word_t));
+    printf(FMT_PADDR ": " FMT_WORD "\n", cur, val);
+  }
+
+  return 0;
+}
+
+static int cmd_p(char *args) {
+  if (args == NULL) {
+    printf("usage: p EXPR\n");
+    return 0;
+  }
+
+  bool success = false;
+  word_t val = expr_eval(args, &success);
+  if (!success) {
+    printf("expression evaluation failed\n");
+    return 0;
+  }
+  printf(FMT_WORD "\n", val);
+  return 0;
+}
+
+static int cmd_w(char *args) {
+  if (args == NULL) {
+    printf("usage: w EXPR\n");
+    return 0;
+  }
+
+  add_watchpoint(args);
+  return 0;
+}
+
+static int cmd_d(char *args) {
+  if (args == NULL) {
+    printf("usage: d N\n");
+    return 0;
+  }
+
+  int no = strtol(args, NULL, 0);
+  delete_watchpoint(no);
+  return 0;
+}
+
 static int cmd_help(char *args);
+
+enum {
+  CMD_HELP,
+  CMD_C,
+  CMD_Q,
+  CMD_SI,
+  CMD_INFO,
+  CMD_X,
+  CMD_P,
+  CMD_W,
+  CMD_D,
+  NR_CMD,
+};
 
 static struct {
   const char *name;
   const char *description;
   int (*handler) (char *);
-} cmd_table [] = {
-  { "help", "Display information about all supported commands", cmd_help },
-  { "c", "Continue the execution of the program", cmd_c },
-  { "q", "Exit NEMU", cmd_q },
-
-  /* TODO: Add more commands */
-
+} cmd_table[NR_CMD] = {
+  [CMD_HELP] = { "help", "Display information about all supported commands", cmd_help },
+  [CMD_C]    = { "c", "Continue the execution of the program", cmd_c },
+  [CMD_Q]    = { "q", "Exit NEMU", cmd_q },
+  [CMD_SI]   = { "si", "Step one instruction", cmd_si }, // si [N]
+  [CMD_INFO] = { "info", "Display information about the current state of the program", cmd_info }, // info r, info w
+  [CMD_X]    = { "x", "View memory", cmd_x }, // x N EXPR
+  [CMD_P]    = { "p", "print expression", cmd_p }, // p EXPR
+  [CMD_W]    = { "w", "watchpoint expression", cmd_w }, // w EXPR
+  [CMD_D]    = { "d", "delete watchpoint", cmd_d }, // d N
 };
 
 #define NR_CMD ARRLEN(cmd_table)
@@ -88,6 +194,20 @@ static int cmd_help(char *args) {
       }
     }
     printf("Unknown command '%s'\n", arg);
+  }
+  return 0;
+}
+
+static int cmd_info(char *args) {
+  if (args == NULL) {
+    printf("%s - %s\n", cmd_table[CMD_INFO].name, cmd_table[CMD_INFO].description);
+  } else if (0 == strcmp(args, "r")) {
+    isa_reg_display();
+  } else if (0 == strcmp(args, "w")) {
+    list_watchpoints();
+  } else {
+    printf("Unknown subcommand '%s'\n", args);
+    printf("%s - %s\n", cmd_table[CMD_INFO].name, cmd_table[CMD_INFO].description);
   }
   return 0;
 }
