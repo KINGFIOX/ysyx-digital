@@ -1,0 +1,6 @@
+top = encode83
+
+x (SW8, SW7, SW6, SW5, SW4, SW3, SW2, SW1)
+en (SW0)
+
+y (LD2, LD1, LD0)
