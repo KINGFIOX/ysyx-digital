@@ -1,0 +1,8 @@
+top = top
+
+A (SW3, SW2, SW1, SW0)
+B (SW7, SW6, SW5, SW4)
+OP (SW10 , SW9 , SW8)
+OF ( LD0 )
+ZF ( LD1 )
+h (SEG0A, SEG0B, SEG0C, SEG0D, SEG0E, SEG0F, SEG0G)
