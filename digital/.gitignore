@@ -7,7 +7,7 @@
 !*.nxdc
 !.gitignore
 !README.md
-!/lab2
+!*.hex
 obj_dir
 build
 
