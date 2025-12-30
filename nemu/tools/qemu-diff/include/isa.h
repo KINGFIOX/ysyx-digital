@@ -16,6 +16,7 @@
 #ifndef __ISA_H__
 #define __ISA_H__
 
+#include <stdint.h>
 #if defined(CONFIG_ISA_mips32)
 #define ISA_QEMU_BIN "qemu-system-mipsel"
 #define ISA_QEMU_ARGS "-machine", "mipssim",\
@@ -25,7 +26,7 @@
 #define ISA_QEMU_ARGS "-bios", "none",
 #elif defined(CONFIG_ISA_riscv) && defined(CONFIG_RV64)
 #define ISA_QEMU_BIN "qemu-system-riscv64"
-#define ISA_QEMU_ARGS 
+#define ISA_QEMU_ARGS "-machine", "virt", "-bios", "none",
 #elif defined(CONFIG_ISA_x86)
 #define ISA_QEMU_BIN "qemu-system-i386"
 #define ISA_QEMU_ARGS

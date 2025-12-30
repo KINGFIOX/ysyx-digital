@@ -17,7 +17,17 @@ NAME  = $(GUEST_ISA)-qemu
 SRCS  = $(shell find src/ -name "*.c")
 
 SHARE = 1
-CFLAGS += -DNEMU_HOME=\"$(NEMU_HOME)\" -DCONFIG_ISA_$(GUEST_ISA)
+CFLAGS += -DNEMU_HOME=\"$(NEMU_HOME)\"
+
+# qemu-diff uses CONFIG_ISA_riscv + CONFIG_RV64 to distinguish RV32/RV64
+# while NEMU uses GUEST_ISA=riscv32/riscv64 in many flows. Map them here.
+ifeq ($(GUEST_ISA),riscv32)
+  CFLAGS += -DCONFIG_ISA_riscv
+else ifeq ($(GUEST_ISA),riscv64)
+  CFLAGS += -DCONFIG_ISA_riscv -DCONFIG_RV64
+else
+  CFLAGS += -DCONFIG_ISA_$(GUEST_ISA)
+endif
 INC_PATH += $(NEMU_HOME)/include
 
 include $(NEMU_HOME)/scripts/build.mk
