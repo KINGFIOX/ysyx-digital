@@ -5,7 +5,7 @@
 // 引入 NEMU 类型定义
 #include <common.h>
 #include <isa.h>
-#include <memory/paddr.h>
+#include <memory/vaddr.h>
 
 // 这些是用来骗过编译器的
 word_t isa_reg_str2val(const char *s, bool *success) {
@@ -13,12 +13,12 @@ word_t isa_reg_str2val(const char *s, bool *success) {
   return 0;
 }
 
-word_t paddr_read(paddr_t addr, int len) {
+word_t vaddr_read(vaddr_t addr, int len) {
   (void)addr; (void)len;
   return 0;
 }
 
-void paddr_write(paddr_t addr, int len, word_t data) {
+void vaddr_write(vaddr_t addr, int len, word_t data) {
   (void)addr; (void)len; (void)data;
 }
 

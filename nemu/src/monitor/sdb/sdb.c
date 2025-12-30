@@ -92,7 +92,7 @@ static int cmd_x(char *args) {
   bool success = false;
   vaddr_t addr = expr_eval(expr_str, &success);
   if (!success) {
-    printf("expression evaluation failed\n");
+    printf("expression evaluation failed: %s\n", parse_error_msg);
     return 0;
   }
 
@@ -114,7 +114,7 @@ static int cmd_p(char *args) {
   bool success = false;
   word_t val = expr_eval(args, &success);
   if (!success) {
-    printf("expression evaluation failed\n");
+    printf("expression evaluation failed: %s\n", parse_error_msg);
     return 0;
   }
   printf(FMT_WORD "\n", val);

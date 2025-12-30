@@ -10,16 +10,18 @@
 #define yylval sdb_exprlval
 
 extern bool sdb_expr_lexer_error;
+extern int sdb_exprerror(const char *msg);
+
 %}
 
 %%
 [ \t\r\n]+                ; /* 空白操作符 */
-0[xX][0-9a-fA-F]+         { yylval = strtoull(yytext, NULL, 16); return TK_HEX; } /* 十六进制 */
-[0-9]+                    { yylval = strtoull(yytext, NULL, 10); return TK_DEC; } /* 十进制 */
+0[xX][0-9a-fA-F]+         { yylval = strtoull(yytext, NULL, 16); return TK_NUM; } /* 十六进制 */
+[0-9]+                    { yylval = strtoull(yytext, NULL, 10); return TK_NUM; } /* 十进制 */
 \$[a-zA-Z0-9_]+           {
                             bool ok = false;
                             word_t v = isa_reg_str2val(yytext + 1 /* 去掉前缀 $ */ , &ok);
-                            if (!ok) { sdb_expr_lexer_error = true; }
+                            if (!ok) { sdb_expr_lexer_error = true; sdb_exprerror("invalid register"); }
                             yylval = v;
                             return TK_REG;
                           }
@@ -32,7 +34,7 @@ extern bool sdb_expr_lexer_error;
 "&&"                      { return AND; }
 "||"                      { return OR; }
 "+"|"-"|"*"|"/"|"("|")"   { return yytext[0]; } /* 返回符号本身 */
-.                         { sdb_expr_lexer_error = true; return yytext[0]; } /* 未知字符 */
+.                         { sdb_expr_lexer_error = true; sdb_exprerror("invalid character"); return yytext[0]; } /* 未知字符 */
 %%
 
 
