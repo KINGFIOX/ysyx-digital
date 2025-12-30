@@ -1,3 +1,5 @@
+/* REFERENCE: https://github.com/sunxfancy/flex-bison-examples */
+
 %{
 #include <common.h> /* 引入头文件 */
 #include <memory/vaddr.h>
@@ -39,6 +41,8 @@ static bool runtime_error;
 %right UMINUS DEREF
 
 %%
+
+/* BNF: https://craftinginterpreters.com/parsing-expressions.html#design-note */
 
 expression:
   logic_or { parse_result = $1; }
