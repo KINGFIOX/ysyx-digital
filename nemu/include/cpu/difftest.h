@@ -16,8 +16,13 @@
 #ifndef __CPU_DIFFTEST_H__
 #define __CPU_DIFFTEST_H__
 
+#include "macro.h"
 #include <common.h>
 #include <difftest-def.h>
+#include <cpu/ifetch.h>
+
+// disassembler entry (implemented in src/utils/disasm.c)
+void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
 
 #ifdef CONFIG_DIFFTEST
 void difftest_skip_ref();
@@ -41,7 +46,16 @@ extern void (*ref_difftest_exec)(uint64_t n);
 extern void (*ref_difftest_raise_intr)(uint64_t NO);
 
 static inline bool difftest_check_reg(const char *name, vaddr_t pc, word_t ref, word_t dut) {
-  if (ref != dut) {
+  if (unlikely(ref != dut)) {
+
+    uint32_t inst = 0;
+    vaddr_t dis_pc = pc;
+    // fetch the guest instruction bytes for disassembly
+    inst = inst_fetch(&dis_pc, 4);
+    char disasm_str[128];
+    disassemble(disasm_str, sizeof(disasm_str), pc, (uint8_t *)&inst, 4);
+
+    printf("disasm: %s\n", disasm_str);
     Log("%s is different after executing instruction at pc = " FMT_WORD
         ", right = " FMT_WORD ", wrong = " FMT_WORD ", diff = " FMT_WORD,
         name, pc, ref, dut, ref ^ dut);

@@ -38,11 +38,9 @@ void invalid_inst(vaddr_t thispc) {
       "\t%08x %08x...\n",
       thispc, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], temp[0], temp[1]);
 
-  // 没有实现的指令
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
-  char disasm_str[128];
-  disassemble(disasm_str, sizeof(disasm_str), thispc, p, 4);
-  printf("disasm_str: %s\n", disasm_str);
+  
+
 
   printf("There are two cases which will trigger this unexpected exception:\n"
       "1. The instruction at PC = " FMT_WORD " is not implemented.\n"
