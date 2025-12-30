@@ -10,4 +10,5 @@
 !*.hex
 obj_dir
 build
+result
 

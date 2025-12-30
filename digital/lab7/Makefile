@@ -1,13 +1,15 @@
+PROJ_PATH ?= $(shell pwd)
+
 # 共用设置
 VERILATOR ?= verilator
-BUILD_DIR ?= ./build
+BUILD_DIR ?= $(PROJ_PATH)/build
 
 # ============================ PS/2 键盘仿真（ps2_tb） ============================
 PS2_TOP      = ps2_keyboard
 PS2_OBJ_DIR  = $(BUILD_DIR)/obj_dir_ps2
 PS2_BIN      = $(PS2_OBJ_DIR)/V$(PS2_TOP)
-PS2_VSRCS    = $(abspath ./vsrc/ps2_keyboard.v)
-PS2_CSRCS    = $(abspath ./csrc/ps2_tb.cpp)
+PS2_VSRCS    = $(abspath $(PROJ_PATH)/vsrc/ps2_keyboard.v)
+PS2_CSRCS    = $(abspath $(PROJ_PATH)/csrc/ps2_tb.cpp)
 
 $(shell mkdir -p $(BUILD_DIR) $(PS2_OBJ_DIR))
 
@@ -62,5 +64,32 @@ all: ps2_tb nvboard
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+# ============================ yosys-sta ============================
+
+# 与具体电路相关
+O ?= $(PROJ_PATH)/result
+RTL_FILES ?= $(shell find $(PROJ_PATH)/vsrc -name "*.v")
+RESULT_DIR = $(O)/$(TOPNAME)-$(CLK_FREQ_MHZ)MHz
+export CLK_FREQ_MHZ ?= 500
+export CLK_PORT_NAME ?= clk
+NETLIST_SYN_V = $(RESULT_DIR)/$(TOPNAME).netlist.v
+TIMING_RPT = $(RESULT_DIR)/$(TOPNAME).rpt
+
+# 一些脚本
+SDC_FILE ?= $(YOSYS_STA_HOME)/scripts/default.sdc #
+SCRIPT_DIR = $(YOSYS_STA_HOME)/scripts
+PDK = icsprout55
+
+syn: $(NETLIST_SYN_V)
+$(NETLIST_SYN_V): $(RTL_FILES) $(SCRIPT_DIR)/yosys.tcl
+	mkdir -p $(@D)
+	echo tcl $(SCRIPT_DIR)/yosys.tcl $(TOPNAME) $(PDK) \"$(RTL_FILES)\" $@ | yosys -g -l $(@D)/yosys.log -s -
+
+
+sta: $(TIMING_RPT)
+$(TIMING_RPT): $(SCRIPT_DIR)/sta.tcl $(SDC_FILE) $(NETLIST_SYN_V)
+	set -o pipefail && $(YOSYS_STA_HOME)/bin/iEDA -script $^ $(TOPNAME) $(PDK) 2>&1 | tee $(RESULT_DIR)/sta.log
+
 
 .PHONY: default all clean ps2_tb nvboard
