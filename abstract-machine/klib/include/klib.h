@@ -9,12 +9,17 @@
 extern "C" {
 #endif
 
-//#define __NATIVE_USE_KLIB__
+#if defined(__ISA_NATIVE__)
+#define __NATIVE_USE_KLIB__
+#endif
 
 // string.h
+// 字符串写入
 void  *memset    (void *s, int c, size_t n);
 void  *memcpy    (void *dst, const void *src, size_t n);
 void  *memmove   (void *dst, const void *src, size_t n);
+
+// 字符串只读函数
 int    memcmp    (const void *s1, const void *s2, size_t n);
 size_t strlen    (const char *s);
 char  *strcat    (char *dst, const char *src);
@@ -32,6 +37,7 @@ int    abs       (int x);
 int    atoi      (const char *nptr);
 
 // stdio.h
+// 格式化输出
 int    printf    (const char *format, ...);
 int    sprintf   (char *str, const char *format, ...);
 int    snprintf  (char *str, size_t size, const char *format, ...);
