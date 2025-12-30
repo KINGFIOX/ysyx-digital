@@ -26,4 +26,6 @@ bool delete_watchpoint(int no);
 void list_watchpoints(void);
 bool check_watchpoints(void);
 
+extern const char * parse_error_msg;
+
 #endif
