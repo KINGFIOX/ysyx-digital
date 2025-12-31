@@ -22,13 +22,13 @@
 #include <cpu/ifetch.h>
 
 // disassembler entry (implemented in src/utils/disasm.c)
-void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
+bool disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
 
 #ifdef CONFIG_DIFFTEST
 void difftest_skip_ref();
 void difftest_skip_dut(int nr_ref, int nr_dut);
 void difftest_set_patch(void (*fn)(void *arg), void *arg);
-void difftest_step(vaddr_t pc, vaddr_t npc);
+bool difftest_step(vaddr_t pc, vaddr_t npc);
 void difftest_detach();
 void difftest_attach();
 #else
@@ -47,15 +47,6 @@ extern void (*ref_difftest_raise_intr)(uint64_t NO);
 
 static inline bool difftest_check_reg(const char *name, vaddr_t pc, word_t ref, word_t dut) {
   if (unlikely(ref != dut)) {
-
-    uint32_t inst = 0;
-    vaddr_t dis_pc = pc;
-    // fetch the guest instruction bytes for disassembly
-    inst = inst_fetch(&dis_pc, 4);
-    char disasm_str[128];
-    disassemble(disasm_str, sizeof(disasm_str), pc, (uint8_t *)&inst, 4);
-
-    printf("disasm: %s\n", disasm_str);
     Log("%s is different after executing instruction at pc = " FMT_WORD
         ", right = " FMT_WORD ", wrong = " FMT_WORD ", diff = " FMT_WORD,
         name, pc, ref, dut, ref ^ dut);

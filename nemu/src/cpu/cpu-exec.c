@@ -18,6 +18,7 @@
 #include <cpu/difftest.h>
 #include <locale.h>
 #include "../monitor/sdb/sdb.h"
+#include "isa.h"
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -32,46 +33,115 @@ static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
 
 void device_update();
+static bool gen_logbuf(char * logbuf, size_t size, vaddr_t pc, vaddr_t snpc, const ISADecodeInfo * isa);
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
-  IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
+
+#ifdef CONFIG_DIFFTEST
+  difftest_step(_this->pc, dnpc);
+#endif
+
 #ifdef CONFIG_WATCHPOINT
   check_watchpoints();
 #endif
 }
 
-static void exec_once(Decode *s, vaddr_t pc) {
-  s->pc = pc;
-  s->snpc = pc;
-  isa_exec_once(s);
-  cpu.pc = s->dnpc;
 #ifdef CONFIG_ITRACE
-  char *p = s->logbuf;
-  p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
-  int ilen = s->snpc - s->pc;
-  uint8_t *inst = (uint8_t *)&s->isa.inst;
-#ifdef CONFIG_ISA_x86
-  for (int i = 0; i < ilen; i ++) {
-#else
+static bool gen_logbuf(char * logbuf, size_t size, vaddr_t pc, vaddr_t snpc, const ISADecodeInfo * isa) {
+// 效果:
+// 0x80000000: 00 00 02 97 auipc   t0, 0
+  char *p = logbuf;
+  p += snprintf(p, size, FMT_WORD ":", pc);
+  int ilen = snpc - pc;
+  uint8_t *inst = (uint8_t *)&isa->inst;
   for (int i = ilen - 1; i >= 0; i --) {
-#endif
     p += snprintf(p, 4, " %02x", inst[i]);
   }
-  int ilen_max = MUXDEF(CONFIG_ISA_x86, 8, 4);
+  int ilen_max = 4;
   int space_len = ilen_max - ilen;
   if (space_len < 0) space_len = 0;
   space_len = space_len * 3 + 1;
-  memset(p, ' ', space_len);
+  memset(p, ' ', space_len); // 打印一些空格, 用来对齐的
   p += space_len;
 
-  void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
-  disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
-      MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
+  bool ret = disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
+  if (!ret) {
+    logbuf[0] = '\0';
+    return false;
+  }
+
+  return true;
+}
 #endif
+
+#ifdef CONFIG_ITRACE
+
+static struct {
+  struct {
+    vaddr_t pc;
+    vaddr_t snpc;
+    ISADecodeInfo isa;
+  } insts[CONFIG_IRINGBUF_SIZE];
+  size_t ptr;
+  size_t count;
+} g_iringbuf = { .ptr = 0, .count = 0 };
+
+
+#define LogInst(format, ...) \
+    _Log(ANSI_FMT(format, ANSI_FG_BLUE) "\n", \
+        ## __VA_ARGS__)
+
+static void dump_iringbuf(void) {
+  if (g_iringbuf.count == 0) return;
+
+  Log("Last %d instructions:", CONFIG_IRINGBUF_SIZE);
+  char logbuf[128];
+  const size_t valid = g_iringbuf.count;
+  const size_t start = (g_iringbuf.ptr + CONFIG_IRINGBUF_SIZE - valid) % CONFIG_IRINGBUF_SIZE;
+
+  for (size_t idx = 0; idx < valid; idx++) {
+    size_t pos = (start + idx) % CONFIG_IRINGBUF_SIZE;
+    bool ret = gen_logbuf(logbuf, sizeof(logbuf),
+                          g_iringbuf.insts[pos].pc,
+                          g_iringbuf.insts[pos].snpc,
+                          &g_iringbuf.insts[pos].isa);
+    if (!ret) continue; // 理论不会失败
+
+    if (idx == valid - 1) {
+      LogInst("--> %s", logbuf);
+    }
+    else { LogInst("    %s", logbuf); }
+  }
+}
+
+#endif
+
+static void exec_once(Decode *s, vaddr_t pc /*always pc = cpu.pc*/ ) {
+  s->pc = pc; // record
+  s->snpc = pc; // static next pc
+  isa_exec_once(s);
+  cpu.pc = s->dnpc;
+
+#ifdef CONFIG_ITRACE
+  // 生成日志(完整)
+  bool ret = gen_logbuf(s->logbuf, sizeof(s->logbuf), s->pc, s->snpc, &s->isa);
+  Assert(ret, "disassemble failed"); // 不可能失败
+
+  // 最近的 CONFIG_IRINGBUF_SIZE 条指令
+  g_iringbuf.insts[g_iringbuf.ptr].isa = s->isa;
+  g_iringbuf.insts[g_iringbuf.ptr].pc = s->pc;
+  g_iringbuf.insts[g_iringbuf.ptr].snpc = s->snpc;
+  if (g_iringbuf.count < CONFIG_IRINGBUF_SIZE) {
+    g_iringbuf.count++;
+  }
+  g_iringbuf.ptr = (g_iringbuf.ptr + 1) % CONFIG_IRINGBUF_SIZE; // loop back
+
+#endif
+
 }
 
 static void execute(uint64_t n) {
@@ -125,6 +195,11 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
+#ifdef CONFIG_ITRACE
+        if (nemu_state.state == NEMU_ABORT) {
+          dump_iringbuf();
+        }
+#endif
       // fall through
     case NEMU_QUIT: statistic();
   }
