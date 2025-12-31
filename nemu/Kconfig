@@ -151,6 +151,21 @@ config ITRACE_COND
   string "Only trace instructions when the condition is true"
   default "true"
 
+config MTRACE
+  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  bool "Enable memory tracer"
+  default y
+
+config IRINGBUF_SIZE
+  depends on ITRACE
+  int "Size of the instruction ring buffer"
+  default 16
+
+# config MTRACE_COND
+#   depends on MTRACE
+#   string "Only trace memory when the condition is true"
+#   default "true"
+
 config WATCHPOINT
   bool "Enable watchpoint"
   default y

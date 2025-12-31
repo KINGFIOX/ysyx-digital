@@ -31,7 +31,9 @@ void init_log(const char *log_file) {
 }
 
 bool log_enable() {
-  return MUXDEF(CONFIG_TRACE, (g_nr_guest_inst >= CONFIG_TRACE_START) &&
-         (g_nr_guest_inst <= CONFIG_TRACE_END), false);
+  return MUXDEF(CONFIG_TRACE,
+    (g_nr_guest_inst >= CONFIG_TRACE_START) && (g_nr_guest_inst <= CONFIG_TRACE_END) && IFDEF(CONFIG_ITRACE, log_fp != NULL),
+    false
+  );
 }
 #endif

@@ -91,43 +91,49 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
   ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
 }
 
-static void checkregs(CPU_state *ref, vaddr_t pc) {
+/// @return true: 一致
+/// @return false: 不一致
+static bool checkregs(const CPU_state *ref, vaddr_t pc) {
   if (!isa_difftest_checkregs(ref, pc)) {
     nemu_state.state = NEMU_ABORT;
     nemu_state.halt_pc = pc;
     isa_reg_display();
     printf("reference pc:\t0x%08x\n", ref->pc);
     printf("nemu pc:\t0x%08x\n", cpu.pc);
+    return false;
   }
+  return true;
 }
 
-void difftest_step(vaddr_t pc, vaddr_t npc) {
+bool difftest_step(vaddr_t pc, vaddr_t npc) {
   CPU_state ref_r;
 
+// ========== start of 校准 ====================================================
+// riscv32 没有需要 “校准” 的指令, 所以这部分对于 riscv32 没用 
   if (skip_dut_nr_inst > 0) {
     ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);
     if (ref_r.pc == npc) {
       skip_dut_nr_inst = 0;
-      checkregs(&ref_r, npc);
-      return;
+      return checkregs(&ref_r, npc);
     }
     skip_dut_nr_inst --;
     if (skip_dut_nr_inst == 0)
       panic("can not catch up with ref.pc = " FMT_WORD " at pc = " FMT_WORD, ref_r.pc, pc);
-    return;
+    return false;
   }
 
   if (is_skip_ref) {
     // to skip the checking of an instruction, just copy the reg state to reference design
     ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
     is_skip_ref = false;
-    return;
+    return true; // 因为这里直接将 qemu 的状态复制到了 nemu, 所以一定是一致的
   }
+// =========================== end of 校准 ====================================
 
   ref_difftest_exec(1);
-  ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT);
+  ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT); // 将 ref 的寄存器状态复制到 dut
 
-  checkregs(&ref_r, pc);
+  return checkregs(&ref_r, pc);
 }
 #else
 void init_difftest(char *ref_so_file, long img_size, int port) { }
