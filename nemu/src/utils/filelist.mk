@@ -22,3 +22,5 @@ src/utils/disasm.c: $(LIBCAPSTONE)
 $(LIBCAPSTONE):
 	$(MAKE) -C tools/capstone
 endif
+
+LIBS += $(if $(CONFIG_FTRACE),-lelf,)
