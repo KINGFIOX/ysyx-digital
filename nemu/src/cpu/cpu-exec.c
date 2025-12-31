@@ -19,6 +19,7 @@
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
 #include <locale.h>
+#include <memory/vaddr.h>
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -88,12 +89,14 @@ static bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
 
 #ifdef CONFIG_ITRACE
 
+typedef struct {
+  vaddr_t pc;
+  vaddr_t snpc;
+  ISADecodeInfo isa;
+} ItraceItem;
+
 static struct {
-  struct {
-    vaddr_t pc;
-    vaddr_t snpc;
-    ISADecodeInfo isa;
-  } insts[CONFIG_IRINGBUF_SIZE];
+  ItraceItem items[CONFIG_IRINGBUF_SIZE];
   size_t ptr;
   size_t count;
 } g_iringbuf = {.ptr = 0, .count = 0};
@@ -114,8 +117,8 @@ static void dump_iringbuf(void) {
   for (size_t idx = 0; idx < valid; idx++) {
     size_t pos = (start + idx) % CONFIG_IRINGBUF_SIZE;
     bool ret =
-        gen_logbuf(logbuf, sizeof(logbuf), g_iringbuf.insts[pos].pc,
-                   g_iringbuf.insts[pos].snpc, &g_iringbuf.insts[pos].isa);
+        gen_logbuf(logbuf, sizeof(logbuf), g_iringbuf.items[pos].pc,
+                   g_iringbuf.items[pos].snpc, &g_iringbuf.items[pos].isa);
     if (!ret)
       continue; // 理论不会失败
 
@@ -141,9 +144,9 @@ static void exec_once(Decode *s, vaddr_t pc /*always pc = cpu.pc*/) {
   Assert(ret, "disassemble failed"); // 不可能失败
 
   // 最近的 CONFIG_IRINGBUF_SIZE 条指令
-  g_iringbuf.insts[g_iringbuf.ptr].isa = s->isa;
-  g_iringbuf.insts[g_iringbuf.ptr].pc = s->pc;
-  g_iringbuf.insts[g_iringbuf.ptr].snpc = s->snpc;
+  g_iringbuf.items[g_iringbuf.ptr].isa = s->isa;
+  g_iringbuf.items[g_iringbuf.ptr].pc = s->pc;
+  g_iringbuf.items[g_iringbuf.ptr].snpc = s->snpc;
   if (g_iringbuf.count < CONFIG_IRINGBUF_SIZE) {
     g_iringbuf.count++;
   }
@@ -220,6 +223,11 @@ void cpu_exec(uint64_t n) {
 #ifdef CONFIG_ITRACE
     if (nemu_state.state == NEMU_ABORT) {
       dump_iringbuf();
+    }
+#endif
+#ifdef CONFIG_MTRACE
+    if (nemu_state.state == NEMU_ABORT) {
+      mtrace_dump();
     }
 #endif
     // fall through
