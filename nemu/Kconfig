@@ -155,6 +155,21 @@ config IRINGBUF_SIZE
   int "Size of the instruction ring buffer"
   default 16
 
+config FTRACE
+  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  bool "Enable function tracer"
+  default y
+
+config FTRACE_STACK_MAX
+  depends on FTRACE
+  int "Maximum depth of the function call stack"
+  default 64
+
+config FTRACE_LOG_SIZE
+  depends on FTRACE
+  int "Size of the function call log buffer"
+  default 512
+
 config MTRACE
   depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
   bool "Enable memory tracer"

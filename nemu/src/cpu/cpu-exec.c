@@ -20,6 +20,7 @@
 #include <cpu/difftest.h>
 #include <locale.h>
 #include <memory/vaddr.h>
+#include <ftrace.h>
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -232,6 +233,9 @@ void cpu_exec(uint64_t n) {
 #endif
     // fall through
   case NEMU_QUIT:
+#ifdef CONFIG_FTRACE
+    ftrace_dump();
+#endif
     statistic();
   }
 }
