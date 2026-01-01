@@ -2,6 +2,7 @@
 *
 !*/
 !/nemu/*
+!/am-kernels/*
 !/nexus-am/*
 !/nanos-lite/*
 !/navy-apps/*
@@ -12,4 +13,3 @@
 !.gitignore
 !init.sh
 !/FE/*
-/am-kernels

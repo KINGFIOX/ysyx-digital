@@ -7,3 +7,6 @@
 [submodule "fceux-am"]
 	path = fceux-am
 	url = git@github.com:KINGFIOX/fceux-am.git
+[submodule "am-kernels"]
+	path = am-kernels
+	url = git@github.com:KINGFIOX/am-kernels.git
