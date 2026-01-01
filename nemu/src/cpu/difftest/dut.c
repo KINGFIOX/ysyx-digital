@@ -121,14 +121,14 @@ bool difftest_step(vaddr_t pc, vaddr_t npc) {
       panic("can not catch up with ref.pc = " FMT_WORD " at pc = " FMT_WORD, ref_r.pc, pc);
     return false;
   }
+// =========================== end of 校准 ====================================
 
-  if (is_skip_ref) {
+  if (is_skip_ref) { // mmio 会跳过检查
     // to skip the checking of an instruction, just copy the reg state to reference design
     ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
-    is_skip_ref = false;
+    is_skip_ref = false; // 仅跳过一条指令的检查 
     return true; // 因为这里直接将 qemu 的状态复制到了 nemu, 所以一定是一致的
   }
-// =========================== end of 校准 ====================================
 
   ref_difftest_exec(1);
   ref_difftest_regcpy(&ref_r, DIFFTEST_TO_DUT); // 将 ref 的寄存器状态复制到 dut
