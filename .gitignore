@@ -11,5 +11,5 @@
 !README.md
 !.gitignore
 !init.sh
-!/F/*
+!/FE/*
 /am-kernels
