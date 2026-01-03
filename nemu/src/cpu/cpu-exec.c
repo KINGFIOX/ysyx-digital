@@ -14,6 +14,7 @@
  ***************************************************************************************/
 
 #include "../monitor/sdb/sdb.h"
+#include <device/map.h>
 #include "isa.h"
 #include <cpu/cpu.h>
 #include <cpu/decode.h>
@@ -180,6 +181,9 @@ void assert_fail_msg() {
 #endif
 #ifdef CONFIG_MTRACE
     mtrace_dump();
+#endif
+#ifdef CONFIG_DTRACE
+    dtrace_dump();
 #endif
 #ifdef CONFIG_FTRACE
     ftrace_dump();
