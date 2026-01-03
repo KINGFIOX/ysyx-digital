@@ -5,7 +5,8 @@
 
 #define KEY_QUEUE_LEN 1024
 static int key_queue[KEY_QUEUE_LEN] = {};
-static int key_f = 0, key_r = 0;
+static int key_f /*front*/ = 0, key_r = 0 /*rear*/ ;
+
 static SDL_mutex *key_queue_lock = NULL;
 
 #define XX(k) [SDL_SCANCODE_##k] = AM_KEY_##k,
