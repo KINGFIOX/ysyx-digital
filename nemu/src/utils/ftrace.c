@@ -20,8 +20,9 @@
 #include <ftrace.h>
 #include <gelf.h> // gelf 是 libelf 提供的 "通用ELF" 接口层
 #include <libelf.h> // libelf 是库本身, 提供读写ELF的基础API
-#include <errno.h>
+#include <errno.h> // NOLINT: for errno
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -81,8 +82,7 @@ static void add_func(vaddr_t start, vaddr_t size, const char *name) {
   funcs_reserve(func_cnt + 1);
   funcs[func_cnt].start = start;
   funcs[func_cnt].end = start + size;
-  strncpy(funcs[func_cnt].name, name, sizeof(funcs[func_cnt].name) - 1);
-  funcs[func_cnt].name[sizeof(funcs[func_cnt].name) - 1] = '\0';
+  snprintf(funcs[func_cnt].name, sizeof(funcs[func_cnt].name), "%s", name);
   func_cnt++;
 }
 

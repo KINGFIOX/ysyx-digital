@@ -39,10 +39,8 @@ static struct {
   size_t count;
 } mtrace_buf = {.ptr = 0, .count = 0};
 
-static inline void mtrace_push(char type, vaddr_t addr, int len, word_t data,
-                               word_t pc) {
-  mtrace_buf.items[mtrace_buf.ptr] =
-      (MtraceItem){.addr = addr, .len = len, .data = data, .type = type, .pc = pc};
+static inline void mtrace_push(char type, vaddr_t addr, int len, word_t data, word_t pc) {
+  mtrace_buf.items[mtrace_buf.ptr] = (MtraceItem){.addr = addr, .len = len, .data = data, .type = type, .pc = pc};
   if (mtrace_buf.count < MTRACE_BUF_SIZE) {
     mtrace_buf.count++;
   }
@@ -56,8 +54,7 @@ void mtrace_dump(void) {
 
   LogMem("Last %d memory accesses:", MTRACE_BUF_SIZE);
   const size_t valid = mtrace_buf.count;
-  const size_t start =
-      (mtrace_buf.ptr + MTRACE_BUF_SIZE - valid) % MTRACE_BUF_SIZE;
+  const size_t start = (mtrace_buf.ptr + MTRACE_BUF_SIZE - valid) % MTRACE_BUF_SIZE;
 
   for (size_t idx = 0; idx < valid; idx++) {
     size_t pos = (start + idx) % MTRACE_BUF_SIZE;
