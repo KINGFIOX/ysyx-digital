@@ -91,10 +91,6 @@ static void i8042_data_io_handler(uint32_t offset, int len, bool is_write) {
 void init_i8042() {
   i8042_data_port_base = (uint32_t *)new_space(4);
   i8042_data_port_base[0] = NEMU_KEY_NONE;
-#ifdef CONFIG_HAS_PORT_IO
-  add_pio_map ("keyboard", CONFIG_I8042_DATA_PORT, i8042_data_port_base, 4, i8042_data_io_handler);
-#else
   add_mmio_map("keyboard", CONFIG_I8042_DATA_MMIO, i8042_data_port_base, 4, i8042_data_io_handler);
-#endif
   IFNDEF(CONFIG_TARGET_AM, init_keymap());
 }
