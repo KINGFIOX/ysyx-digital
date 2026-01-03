@@ -26,7 +26,7 @@ typedef struct {
   // we treat ioaddr_t as paddr_t here
   paddr_t low;
   paddr_t high;
-  void *space;
+  void *space; // space 是宿主机的地址, 不是nemu内的地址. nemu 中写入某个地址, 终归是要写入宿主机的内存的
   io_callback_t callback;
 } IOMap;
 
@@ -50,7 +50,6 @@ static inline int find_mapid_by_addr(paddr_t addr) {
   return -1;
 }
 
-void add_pio_map(const char *name, ioaddr_t addr, void *space, uint32_t len, io_callback_t callback);
 void add_mmio_map(const char *name, paddr_t addr, void *space, uint32_t len, io_callback_t callback);
 
 word_t map_read(paddr_t addr, int len, IOMap *map);
