@@ -4,13 +4,14 @@
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 
-size_t strlen(const char *s) {
-  size_t n;
+size_t strlen(const char *string) {
+  const char *p;
 
-  for (n = 0; s[n]; n++);
-  return n;
+  assert(string != NULL);
+
+  for (p = string; *p != '\0'; p++) continue;
+  return p - string;
 }
-
 char *strcpy(char *dst, const char *src) {
   char *os = dst;
   while ((*dst++ = *src++) != 0);
@@ -33,9 +34,19 @@ char *strcat(char *dst, const char *src) {
   return os;
 }
 
-int strcmp(const char *p, const char *q) {
-  while (*p && *p == *q) p++, q++;
-  return (uint8_t)*p - (uint8_t)*q;
+int strcmp(const char *a_, const char *b_) {
+  const unsigned char *a = (const unsigned char *)a_;
+  const unsigned char *b = (const unsigned char *)b_;
+
+  assert(a != NULL);
+  assert(b != NULL);
+
+  while (*a != '\0' && *a == *b) {
+    a++;
+    b++;
+  }
+
+  return *a < *b ? -1 : *a > *b;
 }
 
 int strncmp(const char *p, const char *q, size_t n) {
@@ -44,42 +55,65 @@ int strncmp(const char *p, const char *q, size_t n) {
   return (uint8_t)*p - (uint8_t)*q;
 }
 
-void *memset(void *dst, int c, size_t n) {
-  char *cdst = (char *)dst;
-  for (size_t i = 0; i < n; i++) {
-    cdst[i] = c;
+void *memset(void *dst_, int value, size_t size) {
+  unsigned char *dst = dst_;
+
+  assert(dst != NULL || size == 0);
+
+  while (size-- > 0) *dst++ = value;
+
+  return dst_;
+}
+
+void *memmove(void *dst_, const void *src_, size_t size) {
+  unsigned char *dst = dst_;
+  const unsigned char *src = src_;
+
+  assert(dst != NULL || size == 0);
+  assert(src != NULL || size == 0);
+
+  if (dst < src) {
+    while (size-- > 0) *dst++ = *src++;
+  } else {
+    dst += size;
+    src += size;
+    while (size-- > 0) *--dst = *--src;
   }
+
   return dst;
 }
 
-void *memmove(void *vdst, const void *vsrc, size_t n) {
-  char *dst = vdst;
-  const char *src = vsrc;
-  if (src > dst) {
-    while (n-- > 0) {
-      *dst++ = *src++;
-    }
-  } else {
-    dst += n;
-    src += n;
-    while (n-- > 0) {
-      *--dst = *--src;
-    }
-  }
-  return vdst;
+void *memcpy(void *dst_, const void *src_, size_t size) {
+  unsigned char *dst = dst_;
+  const unsigned char *src = src_;
+
+  assert(dst != NULL || size == 0);
+  assert(src != NULL || size == 0);
+
+  while (size-- > 0) *dst++ = *src++;
+
+  return dst_;
 }
 
-void *memcpy(void *dst, const void *src, size_t n) { return memmove(dst, src, n); }
+int memcmp(const void *a_, const void *b_, size_t size) {
+  const unsigned char *a = a_;
+  const unsigned char *b = b_;
 
-int memcmp(const void *v1, const void *v2, size_t n) {
-  const uint8_t *s1 = v1;
-  const uint8_t *s2 = v2;
-  while (n-- > 0) {
-    if (*s1 != *s2) return *s1 - *s2;
-    s1++, s2++;
-  }
+  assert(a != NULL || size == 0);
+  assert(b != NULL || size == 0);
 
+  for (; size-- > 0; a++, b++)
+    if (*a != *b) return *a > *b ? +1 : -1;
   return 0;
+}
+
+/** If STRING is less than MAXLEN characters in length, returns
+   its actual length.  Otherwise, returns MAXLEN. */
+size_t strnlen(const char *string, size_t maxlen) {
+  size_t length;
+
+  for (length = 0; string[length] != '\0' && length < maxlen; length++) continue;
+  return length;
 }
 
 #endif
