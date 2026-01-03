@@ -35,8 +35,6 @@ static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
 
 void device_update();
-static bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
-                       const ISADecodeInfo *isa);
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE_COND

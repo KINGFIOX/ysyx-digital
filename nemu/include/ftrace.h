@@ -24,6 +24,7 @@ void init_ftrace(const char *img_file);
 void ftrace_call(vaddr_t pc, vaddr_t target);
 void ftrace_ret(vaddr_t pc);
 void ftrace_dump(void);
+
 #else
 // 只是用来骗过编译编译器的
 static inline void init_ftrace(const char *elf_file) { (void)elf_file; }

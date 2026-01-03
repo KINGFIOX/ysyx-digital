@@ -25,6 +25,10 @@
 #include <string.h>
 #include <unistd.h>
 
+<<<<<<< HEAD
+=======
+#ifdef CONFIG_FTRACE
+>>>>>>> f6dfb86 (修复ftrace链接不到的问题)
 
 typedef struct {
   vaddr_t start;
