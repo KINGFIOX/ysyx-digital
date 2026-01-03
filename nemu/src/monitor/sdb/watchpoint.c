@@ -129,7 +129,7 @@ bool check_watchpoints(void) {
   }
 
   if (triggered) {
-    nemu_state.state = NEMU_STOP;
+    if (nemu_state.state == NEMU_RUNNING) { nemu_state.state = NEMU_STOP; }
   }
 
   return triggered;
