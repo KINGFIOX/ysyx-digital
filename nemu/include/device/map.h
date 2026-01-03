@@ -55,4 +55,10 @@ void add_mmio_map(const char *name, paddr_t addr, void *space, uint32_t len, io_
 word_t map_read(paddr_t addr, int len, IOMap *map);
 void map_write(paddr_t addr, int len, word_t data, IOMap *map);
 
+#ifdef CONFIG_DTRACE
+void dtrace_dump(void);
+#else
+static inline void dtrace_dump(void) {}
+#endif
+
 #endif

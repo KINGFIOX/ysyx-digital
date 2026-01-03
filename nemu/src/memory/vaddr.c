@@ -39,7 +39,7 @@ static struct {
   size_t count;
 } mtrace_buf = {.ptr = 0, .count = 0};
 
-static inline void mtrace_push(char type, vaddr_t addr, int len, word_t data, word_t pc) {
+static void mtrace_push(char type, vaddr_t addr, int len, word_t data, word_t pc) {
   mtrace_buf.items[mtrace_buf.ptr] = (MtraceItem){.addr = addr, .len = len, .data = data, .type = type, .pc = pc};
   if (mtrace_buf.count < MTRACE_BUF_SIZE) {
     mtrace_buf.count++;
