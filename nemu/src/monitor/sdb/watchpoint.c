@@ -62,7 +62,7 @@ static void free_wp(WP *wp) {
 }
 
 int add_watchpoint(const char *expr) {
-  bool success = false;
+  bool success = true;
   word_t val = expr_eval(expr, &success);
   if (!success) {
     printf("expression evaluation failed, watchpoint not set: %s\n", expr);
@@ -120,10 +120,10 @@ bool check_watchpoints(void) {
       continue;
     }
 
-    if (val != cur->last_value) { // 可能同时触发多个, 因此这里不能 break. 需要更新完其他的watchpoint
+    if (val != cur->last_value) {
       printf("watchpoint %d triggered: %s\n", cur->NO, cur->expr);
       printf("old value = " FMT_WORD ", new value = " FMT_WORD "\n", cur->last_value, val);
-      cur->last_value = val;
+      cur->last_value = val; // 可能同时触发多个, 因此这里不能 break. 需要更新完其他的watchpoint
       triggered = true;
     }
   }
