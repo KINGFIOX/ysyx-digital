@@ -195,7 +195,7 @@ config DIFFTEST
 
 choice
   prompt "Reference design"
-  default DIFFTEST_REF_SPIKE if ISA_riscv
+  default DIFFTEST_REF_QEMU if ISA_riscv
   default DIFFTEST_REF_KVM if ISA_x86
   default DIFFTEST_REF_QEMU
   depends on DIFFTEST
