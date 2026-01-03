@@ -57,7 +57,7 @@ static int cmd_q(char *args) {
 
 static int cmd_si(char *args) {
   int steps = 1; // 缺省为1
-  if (args != NULL) {
+  if (args != NULL) { // 不该有参数
     steps = strtol(args, NULL, 0);
     if (steps <= 0) {
       printf("invalid number of steps: %s\n", args);

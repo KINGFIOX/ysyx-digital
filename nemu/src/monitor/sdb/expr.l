@@ -1,4 +1,8 @@
-/* prefix="sdb_expr": 定义前缀, yy_scan_string -> sdb_expr_scan_string, etc. */
+/* prefix="sdb_expr": 定义前缀, 命名空间, 避免冲突, yy_scan_string -> sdb_expr_scan_string, etc. */
+/* noinput 不生成默认的 yyinput, 避免引用 stdin 读入 */
+/* nounput, 不生成 unput, 不引入 unput, 表达式求值一遍扫描就可以了, 不需要回退 */
+/* noyywrap, 不引入 yywrap, 字符串是直接传入的, 不需要判断文件结尾 */
+/* nodefault, 不使用失败的 default 规则, 而是直接报错, 以免掩盖错误 */
 %option noinput nounput noyywrap nodefault prefix="sdb_expr"
 
 %{
