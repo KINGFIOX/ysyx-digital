@@ -17,16 +17,9 @@
 #include <capstone/capstone.h>
 #include <common.h>
 
-#if defined(__APPLE__)
-#define CS_LIB_SUFFIX "5.dylib"
-#elif defined(__linux__)
 #define CS_LIB_SUFFIX "so.5"
-#else
-#error "Unsupported platform"
-#endif
 
-static size_t (*cs_disasm_dl)(csh handle, const uint8_t *code,
-    size_t code_size, uint64_t address, size_t count, cs_insn **insn);
+static size_t (*cs_disasm_dl)(csh handle, const uint8_t *code, size_t code_size, uint64_t address, size_t count, cs_insn **insn);
 static void (*cs_free_dl)(cs_insn *insn, size_t count);
 
 static csh handle;
