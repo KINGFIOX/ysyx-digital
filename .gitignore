@@ -13,3 +13,4 @@
 !.gitignore
 !init.sh
 !/FE/*
+!/D/*
