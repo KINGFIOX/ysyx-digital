@@ -23,4 +23,10 @@ $(LIBCAPSTONE):
 	$(MAKE) -C tools/capstone
 endif
 
-LIBS += $(if $(CONFIG_FTRACE),-lelf,)
+ifeq ($(CONFIG_FTRACE),)
+SRCS-BLACKLIST-y += src/utils/ftrace.c
+else
+LIBS += -lelf
+endif
+
+

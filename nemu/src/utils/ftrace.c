@@ -14,9 +14,6 @@
 ***************************************************************************************/
 
 #include <common.h>
-
-#ifdef CONFIG_FTRACE
-
 #include <ftrace.h>
 #include <gelf.h> // gelf 是 libelf 提供的 "通用ELF" 接口层
 #include <libelf.h> // libelf 是库本身, 提供读写ELF的基础API
@@ -223,5 +220,3 @@ void ftrace_dump(void) {
     }
   }
 }
-
-#endif
