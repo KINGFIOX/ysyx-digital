@@ -51,12 +51,19 @@ static void init_screen() {
       SCREEN_H * (MUXDEF(CONFIG_VGA_SIZE_400x300, 2, 1)),
       0, &window, &renderer);
   SDL_SetWindowTitle(window, title);
+  // 创建纹理, 这个可以利用本机的 GPU
+  // SDL_PIXELFORMAT_ARGB8888 纹理的像素格式, 按 ARGB 顺序, 每个通道 8bit
+  // SDL_TEXTUREACCESS_STATIC 纹理的访问方式, 静态访问, 即纹理的内容不会改变
   texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
       SDL_TEXTUREACCESS_STATIC, SCREEN_W, SCREEN_H);
   SDL_RenderPresent(renderer);
 }
 
 static inline void update_screen() {
+  // SDL_UpdateTexture: 将 vmem(内存中) 中的数据搬运到显存上
+  // rect 表示: 指定要更新纹理的矩形区域 (坐标, 宽, 高), NULL 表示更新整个纹理
+  // pitch: 每行占用的字节数
+  // update_texture -> render_clear -> render_copy -> render_present 这个是标准流程
   SDL_UpdateTexture(texture, NULL, vmem, SCREEN_W * sizeof(uint32_t));
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture, NULL, NULL);
