@@ -18,7 +18,6 @@
 
 #define KEYDOWN_MASK 0x8000
 
-#ifndef CONFIG_TARGET_AM
 #include <SDL2/SDL.h>
 
 // Note that this is not the standard
@@ -70,15 +69,6 @@ void send_key(uint8_t scancode, bool is_keydown) {
     key_enqueue(am_scancode);
   }
 }
-#else // !CONFIG_TARGET_AM
-#define NPC_KEY_NONE 0
-
-static uint32_t key_dequeue() {
-  AM_INPUT_KEYBRD_T ev = io_read(AM_INPUT_KEYBRD);
-  uint32_t am_scancode = ev.keycode | (ev.keydown ? KEYDOWN_MASK : 0);
-  return am_scancode;
-}
-#endif
 
 static uint32_t *i8042_data_port_base = NULL;
 
@@ -92,5 +82,5 @@ void init_i8042() {
   i8042_data_port_base = (uint32_t *)new_space(4);
   i8042_data_port_base[0] = NPC_KEY_NONE;
   add_mmio_map("keyboard", CONFIG_I8042_DATA_MMIO, i8042_data_port_base, 4, i8042_data_io_handler);
-  IFNDEF(CONFIG_TARGET_AM, init_keymap());
+  init_keymap();
 }

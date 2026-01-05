@@ -17,7 +17,6 @@
 
 extern uint64_t g_nr_guest_inst;
 
-#ifndef CONFIG_TARGET_AM
 FILE *log_fp = NULL;
 
 void init_log(const char *log_file) {
@@ -36,4 +35,3 @@ bool log_enable() {
     false
   );
 }
-#endif

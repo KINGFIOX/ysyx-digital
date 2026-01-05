@@ -35,7 +35,6 @@ static void welcome() {
   printf("For help, type \"help\"\n");
 }
 
-#ifndef CONFIG_TARGET_AM
 #include <getopt.h>
 
 void sdb_set_batch_mode();
@@ -135,21 +134,3 @@ void init_monitor(int argc, char *argv[]) {
   /* Display welcome message. */
   welcome();
 }
-#else // CONFIG_TARGET_AM
-static long load_img() {
-  extern char bin_start, bin_end;
-  size_t size = &bin_end - &bin_start;
-  Log("img size = %ld", size);
-  memcpy(guest_to_host(RESET_VECTOR), &bin_start, size);
-  return size;
-}
-
-void am_init_monitor() {
-  init_rand();
-  init_mem();
-  init_isa();
-  load_img();
-  IFDEF(CONFIG_DEVICE, init_device());
-  welcome();
-}
-#endif

@@ -105,11 +105,4 @@ include $(NPC_HOME)/scripts/config.mk
 
 # =============================== 构建 AM 系统 ===============================
 
-# 在 nemu 中运行 nemu
-ifdef CONFIG_TARGET_AM
-include $(AM_HOME)/Makefile
-LINKAGE += $(ARCHIVES)
-# 在 native 中运行 nemu
-else
 include $(NPC_HOME)/scripts/native.mk
-endif

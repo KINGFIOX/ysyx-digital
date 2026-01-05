@@ -16,9 +16,7 @@
 #include <common.h>
 #include <utils.h>
 #include <device/alarm.h>
-#ifndef CONFIG_TARGET_AM
 #include <SDL2/SDL.h>
-#endif
 
 void init_map();
 void init_serial();
@@ -43,7 +41,6 @@ void device_update() {
 
   IFDEF(CONFIG_HAS_VGA, vga_update_screen());
 
-#ifndef CONFIG_TARGET_AM
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
@@ -63,18 +60,14 @@ void device_update() {
       default: break;
     }
   }
-#endif
 }
 
 void sdl_clear_event_queue() {
-#ifndef CONFIG_TARGET_AM
   SDL_Event event;
   while (SDL_PollEvent(&event));
-#endif
 }
 
 void init_device() {
-  IFDEF(CONFIG_TARGET_AM, ioe_init());
   init_map();
 
   IFDEF(CONFIG_HAS_SERIAL, init_serial());
@@ -85,5 +78,5 @@ void init_device() {
   IFDEF(CONFIG_HAS_DISK, init_disk());
   IFDEF(CONFIG_HAS_SDCARD, init_sdcard());
 
-  IFNDEF(CONFIG_TARGET_AM, init_alarm());
+  init_alarm();
 }
