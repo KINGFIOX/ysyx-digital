@@ -1,17 +1,17 @@
 /***************************************************************************************
-* Copyright (c) 2014-2024 Zihao Yu, Nanjing University
-*
-* NPC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*          http://license.coscl.org.cn/MulanPSL2
-*
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-*
-* See the Mulan PSL v2 for more details.
-***************************************************************************************/
+ * Copyright (c) 2014-2024 Zihao Yu, Nanjing University
+ *
+ * NPC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan
+ *PSL v2. You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ *
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+ *KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ *NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *
+ * See the Mulan PSL v2 for more details.
+ ***************************************************************************************/
 
 #include <common.h>
 #include <device/map.h>
@@ -19,13 +19,9 @@
 #define SCREEN_W (MUXDEF(CONFIG_VGA_SIZE_800x600, 800, 400))
 #define SCREEN_H (MUXDEF(CONFIG_VGA_SIZE_800x600, 600, 300))
 
-static uint32_t screen_width() {
-  return SCREEN_W;
-}
+static uint32_t screen_width() { return SCREEN_W; }
 
-static uint32_t screen_height() {
-  return SCREEN_H;
-}
+static uint32_t screen_height() { return SCREEN_H; }
 
 static uint32_t screen_size() {
   return screen_width() * screen_height() * sizeof(uint32_t);
@@ -47,14 +43,14 @@ static void init_screen() {
   SDL_Init(SDL_INIT_VIDEO);
   SDL_CreateWindowAndRenderer(
       SCREEN_W * (MUXDEF(CONFIG_VGA_SIZE_400x300, 2, 1)),
-      SCREEN_H * (MUXDEF(CONFIG_VGA_SIZE_400x300, 2, 1)),
-      0, &window, &renderer);
+      SCREEN_H * (MUXDEF(CONFIG_VGA_SIZE_400x300, 2, 1)), 0, &window,
+      &renderer);
   SDL_SetWindowTitle(window, title);
   // 创建纹理, 这个可以利用本机的 GPU
   // SDL_PIXELFORMAT_ARGB8888 纹理的像素格式, 按 ARGB 顺序, 每个通道 8bit
   // SDL_TEXTUREACCESS_STATIC 纹理的访问方式, 静态访问, 即纹理的内容不会改变
   texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
-      SDL_TEXTUREACCESS_STATIC, SCREEN_W, SCREEN_H);
+                              SDL_TEXTUREACCESS_STATIC, SCREEN_W, SCREEN_H);
   SDL_RenderPresent(renderer);
 }
 
@@ -62,7 +58,8 @@ static inline void update_screen() {
   // SDL_UpdateTexture: 将 vmem(内存中) 中的数据搬运到显存上
   // rect 表示: 指定要更新纹理的矩形区域 (坐标, 宽, 高), NULL 表示更新整个纹理
   // pitch: 每行占用的字节数
-  // update_texture -> render_clear -> render_copy -> render_present 这个是标准流程
+  // update_texture -> render_clear -> render_copy -> render_present
+  // 这个是标准流程
   SDL_UpdateTexture(texture, NULL, vmem, SCREEN_W * sizeof(uint32_t));
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture, NULL, NULL);

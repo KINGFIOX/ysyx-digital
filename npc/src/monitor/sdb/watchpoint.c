@@ -1,21 +1,21 @@
 /***************************************************************************************
-* Copyright (c) 2014-2024 Zihao Yu, Nanjing University
-*
-* NPC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*          http://license.coscl.org.cn/MulanPSL2
-*
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-*
-* See the Mulan PSL v2 for more details.
-***************************************************************************************/
+ * Copyright (c) 2014-2024 Zihao Yu, Nanjing University
+ *
+ * NPC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan
+ *PSL v2. You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ *
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+ *KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ *NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *
+ * See the Mulan PSL v2 for more details.
+ ***************************************************************************************/
 
-#include <stdio.h>
 #include "sdb.h"
 #include "utils.h"
+#include <stdio.h>
 
 #define NR_WP 32
 
@@ -23,8 +23,7 @@ typedef struct watchpoint {
   int NO;
   struct watchpoint *next;
 
-  /* TODO: Add more members if necessary */
-  char expr[1024]; // 记录表达式 
+  char expr[1024];   // 记录表达式
   word_t last_value; // 上一次的值
 
 } WP;
@@ -33,7 +32,7 @@ static WP wp_pool[NR_WP] = {};
 static WP *head = NULL, *free_ = NULL;
 
 void init_wp_pool() {
-  for (int i = 0; i < NR_WP; i ++) {
+  for (int i = 0; i < NR_WP; i++) {
     wp_pool[i].NO = i;
     wp_pool[i].next = (i == NR_WP - 1 ? NULL : &wp_pool[i + 1]);
   }
@@ -42,7 +41,7 @@ void init_wp_pool() {
   free_ = wp_pool;
 }
 
-static WP *new_wp(const char * expr, word_t last_value) {
+static WP *new_wp(const char *expr, word_t last_value) {
   Assert(free_ != NULL, "watchpoint pool is full");
   WP *wp = free_;
   free_ = free_->next; // pop from free_list
@@ -70,7 +69,8 @@ int add_watchpoint(const char *expr) {
   }
 
   WP *wp = new_wp(expr, val);
-  printf("watchpoint %d: %s\ncurrent value = " FMT_WORD "\n", wp->NO, wp->expr, wp->last_value);
+  printf("watchpoint %d: %s\ncurrent value = " FMT_WORD "\n", wp->NO, wp->expr,
+         wp->last_value);
   return wp->NO;
 }
 
@@ -116,20 +116,25 @@ bool check_watchpoints(void) {
     bool success = false;
     word_t val = expr_eval(cur->expr, &success);
     if (!success) {
-      printf("watchpoint %d expression evaluation failed: %s\n", cur->NO, cur->expr);
+      printf("watchpoint %d expression evaluation failed: %s\n", cur->NO,
+             cur->expr);
       continue;
     }
 
     if (val != cur->last_value) {
       printf("watchpoint %d triggered: %s\n", cur->NO, cur->expr);
-      printf("old value = " FMT_WORD ", new value = " FMT_WORD "\n", cur->last_value, val);
-      cur->last_value = val; // 可能同时触发多个, 因此这里不能 break. 需要更新完其他的watchpoint
+      printf("old value = " FMT_WORD ", new value = " FMT_WORD "\n",
+             cur->last_value, val);
+      cur->last_value = val; // 可能同时触发多个, 因此这里不能 break.
+                             // 需要更新完其他的watchpoint
       triggered = true;
     }
   }
 
   if (triggered) {
-    if (npc_state.state == NPC_RUNNING) { npc_state.state = NPC_STOP; }
+    if (npc_state.state == NPC_RUNNING) {
+      npc_state.state = NPC_STOP;
+    }
   }
 
   return triggered;
