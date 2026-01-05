@@ -14,6 +14,7 @@
 #**************************************************************************************/
 
 ifdef CONFIG_DIFFTEST
+
 DIFF_REF_PATH = $(NPC_HOME)/$(call remove_quote,$(CONFIG_DIFFTEST_REF_PATH))
 DIFF_REF_SO = $(DIFF_REF_PATH)/build/$(GUEST_ISA)-$(call remove_quote,$(CONFIG_DIFFTEST_REF_NAME))-so
 MKFLAGS = GUEST_ISA=$(GUEST_ISA) SHARE=1 ENGINE=interpreter
@@ -25,4 +26,5 @@ $(DIFF_REF_SO):
 endif
 
 .PHONY: $(DIFF_REF_SO)
+
 endif

@@ -1,3 +1,4 @@
+# 默认目标为 app, 当运行 make 时, 会默认执行 app 这条规则
 .DEFAULT_GOAL = app
 
 # Add necessary options if the target is a shared library
@@ -11,6 +12,7 @@ WORK_DIR  = $(shell pwd)
 BUILD_DIR = $(WORK_DIR)/build
 
 INC_PATH := $(WORK_DIR)/include $(INC_PATH)
+# obj-riscv32-npc-interpreter
 OBJ_DIR  = $(BUILD_DIR)/obj-$(NAME)$(SO)
 BINARY   = $(BUILD_DIR)/$(NAME)$(SO)
 
@@ -25,9 +27,11 @@ INCLUDES = $(addprefix -I, $(INC_PATH))
 CFLAGS  := -O2 -MMD -Wall -Werror $(INCLUDES) $(CFLAGS)
 LDFLAGS := -O2 $(LDFLAGS)
 
+# 将 SRCS 中的 .c 和 .cc 替换成 %(OBJ_DIR)/%.o, 字符串操作
 OBJS = $(SRCS:%.c=$(OBJ_DIR)/%.o) $(CXXSRC:%.cc=$(OBJ_DIR)/%.o)
 
 # Compilation patterns
+
 $(OBJ_DIR)/%.o: %.c
 	@echo + CC $<
 	@mkdir -p $(dir $@)
@@ -41,6 +45,8 @@ $(OBJ_DIR)/%.o: %.cc
 	$(call call_fixdep, $(@:.o=.d), $@)
 
 # Depencies
+# 将 .o 替换成 .d, 字符串操作.
+# 再 include 进来, 里面里面有一些依赖关系
 -include $(OBJS:.o=.d)
 
 # Some convenient rules
@@ -49,6 +55,7 @@ $(OBJ_DIR)/%.o: %.cc
 
 app: $(BINARY)
 
+# :: 避免与潜在的其他同名规则合并
 $(BINARY):: $(OBJS) $(ARCHIVES)
 	@echo + LD $@
 	@$(LD) -o $@ $(OBJS) $(LDFLAGS) $(ARCHIVES) $(LIBS)

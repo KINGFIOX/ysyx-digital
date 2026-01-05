@@ -29,6 +29,8 @@ GUEST_ISA ?= $(call remove_quote,$(CONFIG_ISA))
 ENGINE ?= $(call remove_quote,$(CONFIG_ENGINE))
 NAME    = $(GUEST_ISA)-npc-$(ENGINE)
 
+# =============================== gather file lists ===============================
+
 # Include all filelist.mk to merge file lists
 FILELIST_MK = $(shell find -L ./src -name "filelist.mk")
 include $(FILELIST_MK)
@@ -73,7 +75,8 @@ SRCS := $(sort $(SRCS))
 
 # Extract compiler and options from menuconfig
 ifneq ($(CONFIG_CC),)
-CC = $(call remove_quote,$(CONFIG_CC)) # gcc, g++, clang
+# gcc, g++, clang
+CC = $(call remove_quote,$(CONFIG_CC))
 endif
 
 # =============================== 编译优化、调试信息、地址安全检查 ===============================
@@ -81,7 +84,8 @@ endif
 CFLAGS_BUILD += $(call remove_quote,$(CONFIG_CC_OPT))
 CFLAGS_BUILD += $(if $(CONFIG_CC_LTO),-flto,) # LDFLAGS
 CFLAGS_BUILD += $(if $(CONFIG_CC_DEBUG),-Og -ggdb3,)
-CFLAGS_BUILD += $(if $(CONFIG_CC_ASAN),-fsanitize=address,) # LDFLAGS 会链接, 如果开了地址安全检查
+# LDFLAGS 会链接, 如果开了地址安全检查
+CFLAGS_BUILD += $(if $(CONFIG_CC_ASAN),-fsanitize=address,)
 CFLAGS += $(CFLAGS_BUILD)
 LDFLAGS += $(CFLAGS_BUILD)
 
@@ -101,9 +105,11 @@ include $(NPC_HOME)/scripts/config.mk
 
 # =============================== 构建 AM 系统 ===============================
 
-ifdef CONFIG_TARGET_AM # 在 nemu 中运行 nemu
+# 在 nemu 中运行 nemu
+ifdef CONFIG_TARGET_AM
 include $(AM_HOME)/Makefile
 LINKAGE += $(ARCHIVES)
-else # 在 native 中运行 nemu
+# 在 native 中运行 nemu
+else
 include $(NPC_HOME)/scripts/native.mk
 endif

@@ -63,7 +63,7 @@ savedefconfig: $(CONF)
 	$(Q)$< $(silent) --$@=configs/defconfig $(Kconfig)
 
 # $< 表示第一个依赖文件, 也就是这里的 $(CONF)
-# $@ 表示目标文件, 这里是 riscv32-am_defconfig
+# $@ 表示目标文件, 这里是 riscv32-am_defconfig (就是匹配到的 %defconfig)
 %defconfig: $(CONF) $(FIXDEP)
 	$(Q)$< $(silent) --defconfig=configs/$@ $(Kconfig)
 	$(Q)$< $(silent) --syncconfig $(Kconfig)

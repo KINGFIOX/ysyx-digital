@@ -13,7 +13,9 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
--include $(NPC_HOME)/../Makefile # -include, 表示可选, 如果不存在, 继续执行
+# -include, 表示可选, 如果不存在, 继续执行
+-include $(NPC_HOME)/../Makefile
+# 生成二进制 NPC
 include $(NPC_HOME)/scripts/build.mk
 
 include $(NPC_HOME)/tools/difftest.mk
