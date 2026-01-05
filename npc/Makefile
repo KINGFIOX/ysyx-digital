@@ -33,6 +33,8 @@ NAME    = $(GUEST_ISA)-npc-$(ENGINE)
 FILELIST_MK = $(shell find -L ./src -name "filelist.mk")
 include $(FILELIST_MK)
 
+# =============================== 表达式求值 (flex/bison) ===============================
+
 # Flex/Bison sources and generated files
 LEX_SRC  := src/monitor/sdb/expr.l
 YACC_SRC := src/monitor/sdb/expr.y
@@ -40,37 +42,6 @@ LEX_GEN  := $(LEX_SRC:.l=.lex.c)
 YACC_GEN := $(YACC_SRC:.y=.tab.c)
 YACC_HDR := $(YACC_SRC:.y=.tab.h)
 SRCS-y   += $(LEX_GEN) $(YACC_GEN)
-
-# Filter out directories and files in blacklist to obtain the final set of source files
-DIRS-BLACKLIST-y += $(DIRS-BLACKLIST)
-SRCS-BLACKLIST-y += $(if $(DIRS-BLACKLIST-y), $(shell find -L $(DIRS-BLACKLIST-y) -name "*.c"),)
-SRCS-BLACKLIST-y += $(SRCS-BLACKLIST)
-SRCS-y += $(if $(DIRS-y), $(shell find -L $(DIRS-y) -name "*.c"),)
-SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
-SRCS := $(sort $(SRCS))
-
-# Extract compiler and options from menuconfig
-ifneq ($(CONFIG_CC),)
-CC = $(call remove_quote,$(CONFIG_CC))
-endif
-CFLAGS_BUILD += $(call remove_quote,$(CONFIG_CC_OPT))
-CFLAGS_BUILD += $(if $(CONFIG_CC_LTO),-flto,)
-CFLAGS_BUILD += $(if $(CONFIG_CC_DEBUG),-Og -ggdb3,)
-CFLAGS_BUILD += $(if $(CONFIG_CC_ASAN),-fsanitize=address,)
-# 
-CFLAGS_TRACE += -DITRACE_COND=$(if $(CONFIG_ITRACE_COND),$(call remove_quote,$(CONFIG_ITRACE_COND)),true)
-CFLAGS  += $(CFLAGS_BUILD) $(CFLAGS_TRACE) -D__GUEST_ISA__=$(GUEST_ISA)
-LDFLAGS += $(CFLAGS_BUILD)
-
-# Include rules for menuconfig
-include $(NPC_HOME)/scripts/config.mk
-
-ifdef CONFIG_TARGET_AM
-include $(AM_HOME)/Makefile
-LINKAGE += $(ARCHIVES)
-else
-# Include rules to build NPC
-include $(NPC_HOME)/scripts/native.mk
 
 # Generate parser/lexer sources
 $(YACC_GEN) $(YACC_HDR): $(YACC_SRC)
@@ -80,12 +51,59 @@ $(YACC_GEN) $(YACC_HDR): $(YACC_SRC)
 $(LEX_GEN): $(LEX_SRC) $(YACC_HDR)
 	@echo + FLEX $<
 	@flex -o $(LEX_GEN) $(LEX_SRC)
-endif
 
-# 清理生成的词法/语法文件
 clean: clean-lex-yacc
 
 .PHONY: clean-lex-yacc
 clean-lex-yacc:
 	@rm -f $(LEX_GEN) $(YACC_GEN) $(YACC_HDR)
 
+
+# =============================== 搜集文件列表 ===============================
+
+# Filter out directories and files in blacklist to obtain the final set of source files
+DIRS-BLACKLIST-y += $(DIRS-BLACKLIST)
+SRCS-BLACKLIST-y += $(if $(DIRS-BLACKLIST-y), $(shell find -L $(DIRS-BLACKLIST-y) -name "*.c"),)
+SRCS-BLACKLIST-y += $(SRCS-BLACKLIST)
+SRCS-y += $(if $(DIRS-y), $(shell find -L $(DIRS-y) -name "*.c"),)
+SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
+SRCS := $(sort $(SRCS))
+
+# =============================== 选择编译器 ===============================
+
+# Extract compiler and options from menuconfig
+ifneq ($(CONFIG_CC),)
+CC = $(call remove_quote,$(CONFIG_CC)) # gcc, g++, clang
+endif
+
+# =============================== 编译优化、调试信息、地址安全检查 ===============================
+
+CFLAGS_BUILD += $(call remove_quote,$(CONFIG_CC_OPT))
+CFLAGS_BUILD += $(if $(CONFIG_CC_LTO),-flto,) # LDFLAGS
+CFLAGS_BUILD += $(if $(CONFIG_CC_DEBUG),-Og -ggdb3,)
+CFLAGS_BUILD += $(if $(CONFIG_CC_ASAN),-fsanitize=address,) # LDFLAGS 会链接, 如果开了地址安全检查
+CFLAGS += $(CFLAGS_BUILD)
+LDFLAGS += $(CFLAGS_BUILD)
+
+# =============================== ITRACE ===============================
+
+CFLAGS_TRACE += -DITRACE_COND=$(if $(CONFIG_ITRACE_COND),$(call remove_quote,$(CONFIG_ITRACE_COND)),true)
+CFLAGS += $(CFLAGS_TRACE) 
+
+# =============================== guest os 的 ISA ===============================
+
+CFLAGS += -D__GUEST_ISA__=$(GUEST_ISA)
+
+# =============================== menuconfig ===============================
+
+# Include rules for menuconfig
+include $(NPC_HOME)/scripts/config.mk
+
+# =============================== 构建 AM 系统 ===============================
+
+ifdef CONFIG_TARGET_AM # 在 nemu 中运行 nemu
+include $(AM_HOME)/Makefile
+LINKAGE += $(ARCHIVES)
+else # 在 native 中运行 nemu
+include $(NPC_HOME)/scripts/native.mk
+endif
