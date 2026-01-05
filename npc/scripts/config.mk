@@ -16,11 +16,21 @@
 COLOR_RED := $(shell echo "\033[1;31m")
 COLOR_END := $(shell echo "\033[0m")
 
-ifeq ($(wildcard .config),)
+ifeq ($(wildcard .config),) # 项目目录下没有 .config
 $(warning $(COLOR_RED)Warning: .config does not exist!$(COLOR_END))
 $(warning $(COLOR_RED)To build the project, first run 'make menuconfig'.$(COLOR_END))
 endif
 
+# # @ 的作用: 不显示命令的输出. Q(quiet)
+# test:
+# 	echo "test"
+# $ make test
+# > echo test
+# > test
+# test:
+# 	@echo "test"
+# $ make test
+# > test
 Q            := @
 KCONFIG_PATH := $(NPC_HOME)/tools/kconfig
 FIXDEP_PATH  := $(NPC_HOME)/tools/fixdep
@@ -32,12 +42,15 @@ CONF   := $(KCONFIG_PATH)/build/conf
 MCONF  := $(KCONFIG_PATH)/build/mconf
 FIXDEP := $(FIXDEP_PATH)/build/fixdep
 
+# 编译 conf
 $(CONF):
 	$(Q)$(MAKE) $(silent) -C $(KCONFIG_PATH) NAME=conf
 
+# 编译 mconf
 $(MCONF):
 	$(Q)$(MAKE) $(silent) -C $(KCONFIG_PATH) NAME=mconf
 
+# 编译 fixdep
 $(FIXDEP):
 	$(Q)$(MAKE) $(silent) -C $(FIXDEP_PATH)
 
