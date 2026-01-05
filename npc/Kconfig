@@ -55,8 +55,6 @@ config TARGET_NATIVE_ELF
   bool "Executable on Linux Native"
 config TARGET_SHARE
   bool "Shared object (used as REF for differential testing)"
-config TARGET_AM # 在 NEMU 中运行 NEMU 的时候, 才会设置 CONFIG_TARGET_AM=y, 其他时候不会设置
-  bool "Application on Abstract-Machine (DON'T CHOOSE)"
 endchoice
 
 menu "Build Options"
@@ -68,7 +66,6 @@ config CC_GCC
 config CC_GPP
   bool "g++"
 config CC_CLANG
-  depends on !TARGET_AM
   bool "clang"
 endchoice
 
@@ -101,7 +98,6 @@ config CC_OPT
   default "none"
 
 config CC_LTO
-  depends on !TARGET_AM
   bool "Enable link-time optimization"
   default n
 
@@ -212,18 +208,6 @@ if MODE_SYSTEM
 source "src/memory/Kconfig"
 source "src/device/Kconfig"
 endif
-
-
-menu "Miscellaneous"
-choice
-  depends on !TARGET_AM
-  prompt "Host timer"
-  default TIMER_GETTIMEOFDAY
-config TIMER_GETTIMEOFDAY
-  bool "gettimeofday"
-config TIMER_CLOCK_GETTIME
-  bool "clock_gettime"
-endchoice
 
 config RT_CHECK
   bool "Enable runtime checking"
