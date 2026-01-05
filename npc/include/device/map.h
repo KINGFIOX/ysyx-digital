@@ -1,32 +1,33 @@
 /***************************************************************************************
-* Copyright (c) 2014-2024 Zihao Yu, Nanjing University
-*
-* NPC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*          http://license.coscl.org.cn/MulanPSL2
-*
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-*
-* See the Mulan PSL v2 for more details.
-***************************************************************************************/
+ * Copyright (c) 2014-2024 Zihao Yu, Nanjing University
+ *
+ * NPC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan
+ *PSL v2. You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ *
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+ *KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ *NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *
+ * See the Mulan PSL v2 for more details.
+ ***************************************************************************************/
 
 #ifndef __DEVICE_MAP_H__
 #define __DEVICE_MAP_H__
 
 #include <cpu/difftest.h>
 
-typedef void(*io_callback_t)(uint32_t, int, bool);
-uint8_t* new_space(int size);
+typedef void (*io_callback_t)(uint32_t, int, bool);
+uint8_t *new_space(int size);
 
 typedef struct {
   const char *name;
   // we treat ioaddr_t as paddr_t here
   paddr_t low;
   paddr_t high;
-  void *space; // space 是宿主机的地址, 不是npc内的地址. npc 中写入某个地址, 终归是要写入宿主机的内存的
+  void *space; // space 是宿主机的地址, 不是npc内的地址. npc 中写入某个地址,
+               // 终归是要写入宿主机的内存的
   io_callback_t callback;
 } IOMap;
 
@@ -41,7 +42,7 @@ static inline bool map_inside(IOMap *map, paddr_t addr) {
 
 // 找到 addr 对应的 maps 的索引
 static inline int find_mapid_by_addr(paddr_t addr) {
-  for (int i = 0; i < nr_map; i ++) {
+  for (int i = 0; i < nr_map; i++) {
     if (map_inside(&maps[i], addr)) {
       difftest_skip_ref();
       return i;
