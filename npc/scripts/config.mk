@@ -54,6 +54,7 @@ $(MCONF):
 $(FIXDEP):
 	$(Q)$(MAKE) $(silent) -C $(FIXDEP_PATH)
 
+# conf --syncconfig 生成配置文件到 include/config/auto.conf, 用于后续的编译
 menuconfig: $(MCONF) $(CONF) $(FIXDEP)
 	$(Q)$(MCONF) $(Kconfig)
 	$(Q)$(CONF) $(silent) --syncconfig $(Kconfig)
@@ -61,6 +62,8 @@ menuconfig: $(MCONF) $(CONF) $(FIXDEP)
 savedefconfig: $(CONF)
 	$(Q)$< $(silent) --$@=configs/defconfig $(Kconfig)
 
+# $< 表示第一个依赖文件, 也就是这里的 $(CONF)
+# $@ 表示目标文件, 这里是 riscv32-am_defconfig
 %defconfig: $(CONF) $(FIXDEP)
 	$(Q)$< $(silent) --defconfig=configs/$@ $(Kconfig)
 	$(Q)$< $(silent) --syncconfig $(Kconfig)
@@ -77,6 +80,11 @@ distclean: clean
 
 .PHONY: help distclean
 
+# call_fixdep 用来封装对 fixdep 工具的调用
+# $(1) 传入的第一个参数(.o), $(2) 传入的第二个参数(.d)
+# fixdep 会生成 .d 文件. 用来表示依赖关系的
+# 因为c语言的机制，声明与定义分离，但是一个.o其实对应的是一个.c，但是对应的.h变了的话，依然需要重新生成.o
+# TODO: 还需要进一步理解细节
 define call_fixdep
 	@$(FIXDEP) $(1) $(2) unused > $(1).tmp
 	@mv $(1).tmp $(1)
