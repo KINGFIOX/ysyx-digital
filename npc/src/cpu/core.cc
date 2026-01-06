@@ -34,8 +34,6 @@ static VerilatedVcdC *tfp = nullptr;
 static uint64_t sim_time = 0;  // 仿真时间, 用于波形 dump
 #endif
 
-// 最大时钟周期数 (防止死循环)
-static constexpr uint64_t MAX_CYCLES_PER_STEP = 10000;
 
 /**
  * 拉一个时钟周期: clock 0->1 (上升沿触发)
@@ -171,38 +169,30 @@ static void sync_gpr_to_cpu() {
 #define INST_ECALL  0x00000073
 
 extern "C" bool npc_core_step(Decode *s) {
+  // 单周期设计: step=1 时, 一个时钟周期内完成取指/译码/执行/写回
 
-  // 拉高 step 信号, 触发单步执行
+  // 拉高 step 信号
   top->io_step = 1;
 
-  uint64_t cycles = 0;
-  bool committed = false;
+  // eval() 让组合逻辑稳定, 此时可以读取当前 PC/指令
+  top->eval();
 
-  // 驱动时钟, 等待 commit.valid
-  while (!committed && cycles < MAX_CYCLES_PER_STEP) {
-    tick();
-    cycles++;
+  // 读取 commit 信息 (执行前的 PC/指令/GPR 状态)
+  read_commit_to_decode(s);
 
-    if (top->io_commit_valid) {
-      committed = true;
-      read_commit_to_decode(s);
-      sync_gpr_to_cpu();
-    }
-  }
+  // 驱动一个时钟周期, 完成寄存器更新 (PC 和 GPR 写回)
+  tick();
 
-  // 拉低 step
+  // 同步写回后的 GPR 到 cpu 结构体
+  sync_gpr_to_cpu();
+
+  // 拉低 step 信号
   top->io_step = 0;
-
-  if (!committed) {
-    Log("Core did not commit within %lu cycles", MAX_CYCLES_PER_STEP);
-    return false;
-  }
 
   // 更新全局 PC
   cpu.pc = s->dnpc;
 
   // 检测 ebreak/ecall 指令, 触发 NPCTRAP
-  // 类似 NEMU 的: INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak, N, NEMUTRAP(s->pc, R(10)));
   uint32_t inst = s->isa.inst;
   if (inst == INST_EBREAK || inst == INST_ECALL) {
     // R(10) 是 $a0 寄存器, 作为返回值

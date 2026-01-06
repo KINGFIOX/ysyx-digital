@@ -32,28 +32,11 @@ class NpcCoreTop extends Module {
   val pmemRead  = Module(new DpiPmemRead)
   val pmemWrite = Module(new DpiPmemWrite)
 
-  // ========== 状态机 ==========
-  val sIdle :: sExec :: sCommit :: Nil = Enum(3)
-  val state = RegInit(sIdle)
-
-  // 提交信息寄存器
-  val commitValid = RegInit(false.B)
-  val commitPc    = RegInit(0.U(32.W))
-  val commitInst  = RegInit(0.U(32.W))
-  val nextPc      = RegInit(0.U(32.W))
-
-  // 写回信息寄存器 (在 sExec 阶段锁存)
-  val wbDataReg = RegInit(0.U(32.W))
-  val wbRdReg   = RegInit(0.U(5.W))
-  val wbEnReg   = RegInit(false.B)
-
-  // 执行阶段使能信号
-  val execEn = state === sExec
-
-  // ========== 取指 ==========
-  pmemRead.io.en   := execEn
+  // ========== 取指 (组合逻辑) ==========
+  // 只在 step 有效时才进行取指, 避免 reset/idle 期间的无效内存访问
+  pmemRead.io.en   := io.step
   pmemRead.io.addr := pcReg
-  pmemRead.io.len  := 4.U  // 32位指令
+  pmemRead.io.len  := 4.U     // 32位指令
   val inst = pmemRead.io.data
 
   // ========== 译码 ==========
@@ -89,24 +72,23 @@ class NpcCoreTop extends Module {
   val loadAddr  = rs1Data + immI
   val storeAddr = rs1Data + immS
 
-  // 内存读取 (用于 Load) - 仅在执行阶段且是 LOAD 指令时使能
+  // 内存读取 (用于 Load) - 仅在 step 有效且是 Load 指令时使能
   val loadMemRead = Module(new DpiPmemRead)
-  val loadEn = execEn && (opcode === OP_LOAD)
-  loadMemRead.io.en   := loadEn
+  loadMemRead.io.en   := io.step && (opcode === OP_LOAD)
   loadMemRead.io.addr := loadAddr
   loadMemRead.io.len  := 1.U  // LBU 读取1字节
 
   // LBU: 零扩展字节
   val lbuResult = Cat(0.U(24.W), loadMemRead.io.data(7, 0))
 
-  // 内存写入控制 - 仅在执行阶段且是 STORE 指令时使能
-  val storeEn = execEn && (opcode === OP_STORE) && (funct3 === "b000".U)
+  // 内存写入控制 - 仅在 step 有效时执行写入
+  val storeEn = io.step && (opcode === OP_STORE) && (funct3 === "b000".U)
   pmemWrite.io.en   := storeEn
   pmemWrite.io.addr := storeAddr
   pmemWrite.io.len  := 1.U  // SB 写入1字节
   pmemWrite.io.data := rs2Data(7, 0)  // 只取低8位
 
-  // 写回数据选择 (组合逻辑, 在 sExec 阶段有效)
+  // 写回数据选择
   val wbData = MuxCase(0.U, Seq(
     (opcode === OP_AUIPC) -> auipcResult,
     (opcode === OP_LOAD)  -> lbuResult
@@ -115,43 +97,23 @@ class NpcCoreTop extends Module {
   // 是否写回寄存器
   val wbEn = (opcode === OP_AUIPC) || (opcode === OP_LOAD && funct3 === "b100".U)
 
-  switch(state) {
-    is(sIdle) {
-      commitValid := false.B
-      when(io.step) {
-        state := sExec
-      }
-    }
-    is(sExec) {
-      // 记录提交信息
-      commitPc   := pcReg
-      commitInst := inst
-      nextPc     := pcReg + 4.U  // 顺序执行
+  // 下一条指令的 PC (顺序执行)
+  val nextPc = pcReg + 4.U
 
-      // 锁存写回信息
-      wbDataReg := wbData
-      wbRdReg   := rd
-      wbEnReg   := wbEn
-
-      state := sCommit
+  // ========== 单周期执行: 当 step 有效时完成所有操作 ==========
+  when(io.step) {
+    // 写回寄存器 (排除 x0)
+    when(wbEn && rd =/= 0.U) {
+      gpr(rd) := wbData
     }
-    is(sCommit) {
-      // 写回寄存器 (排除 x0)
-      when(wbEnReg && wbRdReg =/= 0.U) {
-        gpr(wbRdReg) := wbDataReg
-      }
-
-      // 更新 PC
-      pcReg       := nextPc
-      commitValid := true.B
-      state       := sIdle
-    }
+    // 更新 PC
+    pcReg := nextPc
   }
 
   // ========== 输出 ==========
-  io.commit.valid  := commitValid
-  io.commit.pc     := commitPc
+  io.commit.valid  := io.step
+  io.commit.pc     := pcReg
   io.commit.nextPc := nextPc
-  io.commit.inst   := commitInst
+  io.commit.inst   := inst
   io.commit.gpr    := gpr
 }
