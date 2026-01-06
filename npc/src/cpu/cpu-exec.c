@@ -15,12 +15,12 @@
 
 #include "../monitor/sdb/sdb.h"
 #include "isa.h"
+#include <cpu/core.h>
 #include <cpu/cpu.h>
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
 #include <device/map.h>
 #include <ftrace.h>
-#include <locale.h>
 #include <memory/vaddr.h>
 
 /* The assembly code of instructions executed is only output to the screen
@@ -132,17 +132,27 @@ static void dump_iringbuf(void) {
 
 #endif
 
-static void exec_once(Decode *s, vaddr_t pc /*always pc = cpu.pc*/) {
-  s->pc = pc;   // record
-  s->snpc = pc; // static next pc
-  isa_exec_once(s);
-  cpu.pc = s->dnpc;
+static bool exec_once(Decode *s) {
+  return npc_core_step(s);
 }
 
 static void execute(uint64_t n) {
   Decode s;
+  static bool core_ready = false;
+
+  if (!core_ready) {
+    core_ready = npc_core_init();
+    if (!core_ready) {
+      set_npc_state(NPC_ABORT, cpu.pc, -1);
+      return;
+    }
+  }
+
   for (; n > 0; n--) {
-    exec_once(&s, cpu.pc);
+    if (!exec_once(&s)) {
+      set_npc_state(NPC_ABORT, cpu.pc, -1);
+      break;
+    }
 
 #ifdef CONFIG_ITRACE
     // 生成日志(完整)
