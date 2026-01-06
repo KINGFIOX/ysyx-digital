@@ -17,24 +17,12 @@
 #define __ISA_H__
 
 #include <stdint.h>
-#if defined(CONFIG_ISA_mips32)
-#define ISA_QEMU_BIN "qemu-system-mipsel"
-#define ISA_QEMU_ARGS "-machine", "mipssim",\
-  "-kernel", NPC_HOME "/resource/mips-elf/mips.dummy",
-#elif defined(CONFIG_ISA_riscv) && !defined(CONFIG_RV64)
+#if !defined(CONFIG_RV64)
 #define ISA_QEMU_BIN "qemu-system-riscv32"
 #define ISA_QEMU_ARGS "-bios", "none",
-#elif defined(CONFIG_ISA_riscv) && defined(CONFIG_RV64)
+#else
 #define ISA_QEMU_BIN "qemu-system-riscv64"
 #define ISA_QEMU_ARGS "-machine", "virt", "-bios", "none",
-#elif defined(CONFIG_ISA_x86)
-#define ISA_QEMU_BIN "qemu-system-i386"
-#define ISA_QEMU_ARGS
-#elif defined(CONFIG_ISA_loongarch32r)
-#define ISA_QEMU_BIN "qemu-system-loongarch32"
-#define ISA_QEMU_ARGS "-M","ls3a5k32",
-#else
-#error Unsupport ISA
 #endif
 
 union isa_gdb_regs {
