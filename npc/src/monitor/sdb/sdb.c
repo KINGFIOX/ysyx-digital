@@ -221,11 +221,26 @@ void sdb_mainloop() {
     return;
   }
 
+  static char last_cmd[256] = "";  // 保存上一条命令
+  char cmd_buf[256];               // 用于处理命令的缓冲区
+
   for (char *str; (str = rl_gets()) != NULL;) {
-    char *str_end = str + strlen(str);
+    /* 如果用户直接回车，使用上一条命令 */
+    if (str[0] == '\0') {
+      if (last_cmd[0] == '\0') {
+        continue;  // 没有上一条命令，跳过
+      }
+      strncpy(cmd_buf, last_cmd, sizeof(cmd_buf) - 1);
+      cmd_buf[sizeof(cmd_buf) - 1] = '\0';
+    } else {
+      strncpy(cmd_buf, str, sizeof(cmd_buf) - 1);
+      cmd_buf[sizeof(cmd_buf) - 1] = '\0';
+    }
+
+    char *buf_end = cmd_buf + strlen(cmd_buf);
 
     /* extract the first token as the command */
-    char *cmd = strtok(str, " ");
+    char *cmd = strtok(cmd_buf, " ");
     if (cmd == NULL) {
       continue;
     }
@@ -234,7 +249,7 @@ void sdb_mainloop() {
      * which may need further parsing
      */
     char *args = cmd + strlen(cmd) + 1;
-    if (args >= str_end) {
+    if (args >= buf_end) {
       args = NULL;
     }
 
@@ -246,6 +261,14 @@ void sdb_mainloop() {
     int i;
     for (i = 0; i < NR_CMD; i++) {
       if (strcmp(cmd, cmd_table[i].name) == 0) {
+        /* 保存有效命令（重新构造完整命令字符串） */
+        if (args != NULL) {
+          snprintf(last_cmd, sizeof(last_cmd), "%s %s", cmd, args);
+        } else {
+          strncpy(last_cmd, cmd, sizeof(last_cmd) - 1);
+          last_cmd[sizeof(last_cmd) - 1] = '\0';
+        }
+        
         if (cmd_table[i].handler(args) < 0) {
           return;
         }
