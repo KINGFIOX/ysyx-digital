@@ -32,6 +32,7 @@ VERILATOR_LIB    := $(VERILATOR_MDIR)/V$(VERILATOR_TOP)__ALL.a
 # Verilator 头文件路径 (使用 verilator --getenv 确保版本一致)
 INC_PATH += $(VERILATOR_MDIR)
 INC_PATH += $(shell verilator --getenv VERILATOR_ROOT)/include
+INC_PATH += $(shell verilator --getenv VERILATOR_ROOT)/include/vltstd
 
 # Verilator 头文件有一些 sign-compare 警告, 禁用之
 CXXFLAGS += -Wno-sign-compare

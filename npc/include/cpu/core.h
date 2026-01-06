@@ -25,6 +25,14 @@ extern "C" {
 void npc_core_fini(void);
 
 /**
+ * 刷新波形文件
+ *
+ * 将缓冲区中的波形数据写入文件,
+ * 用于异常退出前确保波形完整
+ */
+void npc_core_flush_trace(void);
+
+/**
  * 执行单条指令
  *
  * 驱动时钟直到 commit.valid 有效,

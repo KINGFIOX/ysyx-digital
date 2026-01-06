@@ -8,6 +8,7 @@
  *   4. 同步寄存器状态到全局 cpu 结构体
  */
 
+#include "debug.h"
 #include <cpu/core.h>
 
 extern "C" {
@@ -28,7 +29,10 @@ extern "C" {
 // Verilator 模型实例
 static VNpcCoreTop *top = nullptr;
 static VerilatedContext *ctx = nullptr;
-IFDEF(CONFIG_VERILATOR_TRACE, static VerilatedVcdC* tfp = nullptr;)
+#ifdef CONFIG_VERILATOR_TRACE
+static VerilatedVcdC *tfp = nullptr;
+static uint64_t sim_time = 0;  // 仿真时间, 用于波形 dump
+#endif
 
 // 最大时钟周期数 (防止死循环)
 static constexpr uint64_t MAX_CYCLES_PER_STEP = 10000;
@@ -40,15 +44,18 @@ static void tick() {
   // 下降沿
   top->clock = 0;
   top->eval();
+#ifdef CONFIG_VERILATOR_TRACE
+  tfp->dump(sim_time++);
+#endif
 
   // 上升沿 (Chisel 默认在上升沿触发)
   top->clock = 1;
   top->eval();
+#ifdef CONFIG_VERILATOR_TRACE
+  tfp->dump(sim_time++);
+#endif
 }
 
-/**
- * 复位序列: 拉高 reset 若干周期
- */
 static void reset(int cycles = 5) {
   top->reset = 1;
   for (int i = 0; i < cycles; i++) {
@@ -63,25 +70,39 @@ extern "C" bool npc_core_init(int argc, char *argv[]) {
   ctx->commandArgs(argc, argv);
 
   // init top module
-#if defined(CONFIG_VERILATOR_TRACE)
-  Verilated::traceEverOn(true);
-#endif
   top = new VNpcCoreTop(ctx);
 
+// init trace
 #if defined(CONFIG_VERILATOR_TRACE)
+  Verilated::traceEverOn(true);
   tfp = new VerilatedVcdC;
   top->trace(tfp, 99);  // 99 levels: 追踪所有层级的信号
   tfp->open("build/npc_core.vcd");
   Log("VCD trace enabled: build/npc_core.vcd");
 #endif
 
-  // 执行复位
-  reset();
+  reset(); // 执行复位
   Log("Verilator core initialized, reset complete");
   return true;
 }
 
+extern "C" void npc_core_flush_trace(void) {
+#ifdef CONFIG_VERILATOR_TRACE
+  if (tfp) {
+    tfp->flush();
+  }
+#endif
+}
+
 extern "C" void npc_core_fini(void) {
+#ifdef CONFIG_VERILATOR_TRACE
+  if (tfp) {
+    tfp->close();
+    delete tfp;
+    tfp = nullptr;
+  }
+#endif
+
   if (top) {
     top->final();
     delete top;
@@ -145,10 +166,11 @@ static void sync_gpr_to_cpu() {
   cpu.gpr[31] = top->io_commit_gpr_31;
 }
 
+// ebreak/ecall 指令机器码定义
+#define INST_EBREAK 0x00100073
+#define INST_ECALL  0x00000073
+
 extern "C" bool npc_core_step(Decode *s) {
-  if (!top) {
-    return false;
-  }
 
   // 拉高 step 信号, 触发单步执行
   top->io_step = 1;
@@ -178,6 +200,14 @@ extern "C" bool npc_core_step(Decode *s) {
 
   // 更新全局 PC
   cpu.pc = s->dnpc;
+
+  // 检测 ebreak/ecall 指令, 触发 NPCTRAP
+  // 类似 NEMU 的: INSTPAT("0000000 00001 00000 000 00000 11100 11", ebreak, N, NEMUTRAP(s->pc, R(10)));
+  uint32_t inst = s->isa.inst;
+  if (inst == INST_EBREAK || inst == INST_ECALL) {
+    // R(10) 是 $a0 寄存器, 作为返回值
+    NPCTRAP(s->pc, cpu.gpr[10]);
+  }
 
   return true;
 }

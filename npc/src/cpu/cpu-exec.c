@@ -57,7 +57,7 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 }
 
 #ifdef CONFIG_ITRACE
-bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
+void gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
                 const ISADecodeInfo *isa) {
   // 效果:
   // 0x80000000: 00 00 02 97 auipc   t0, 0
@@ -76,14 +76,10 @@ bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
   memset(p, ' ', space_len); // 打印一些空格, 用来对齐的
   p += space_len;
 
-  bool ret =
-      disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
+  bool ret = disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
   if (!ret) {
-    logbuf[0] = '\0';
-    return false;
+    invalid_inst(pc);
   }
-
-  return true;
 }
 #endif
 
@@ -116,11 +112,7 @@ static void dump_iringbuf(void) {
 
   for (size_t idx = 0; idx < valid; idx++) {
     size_t pos = (start + idx) % CONFIG_IRINGBUF_SIZE;
-    bool ret =
-        gen_logbuf(logbuf, sizeof(logbuf), g_iringbuf.items[pos].pc,
-                   g_iringbuf.items[pos].snpc, &g_iringbuf.items[pos].isa);
-    if (!ret)
-      continue; // 理论不会失败
+    gen_logbuf(logbuf, sizeof(logbuf), g_iringbuf.items[pos].pc, g_iringbuf.items[pos].snpc, &g_iringbuf.items[pos].isa);
 
     if (idx == valid - 1) {
       LogInst("--> %s", logbuf);
@@ -147,8 +139,7 @@ static void execute(uint64_t n) {
 
 #ifdef CONFIG_ITRACE
     // 生成日志(完整)
-    bool ret = gen_logbuf(s.logbuf, sizeof(s.logbuf), s.pc, s.snpc, &s.isa);
-    Assert(ret, "disassemble failed"); // 不可能失败
+    gen_logbuf(s.logbuf, sizeof(s.logbuf), s.pc, s.snpc, &s.isa);
     // 最近的 CONFIG_IRINGBUF_SIZE 条指令
     g_iringbuf.items[g_iringbuf.ptr].isa = s.isa;
     g_iringbuf.items[g_iringbuf.ptr].pc = s.pc;
@@ -192,6 +183,9 @@ void assert_fail_msg() {
 #endif
 #ifdef CONFIG_FTRACE
   ftrace_dump();
+#endif
+#ifdef CONFIG_VERILATOR_TRACE
+  npc_core_flush_trace();
 #endif
   statistic();
 }

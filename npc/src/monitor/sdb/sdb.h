@@ -19,7 +19,6 @@
 #include <common.h>
 
 word_t expr_eval(const char *expr, bool *success);
-void init_regex(void);
 void init_wp_pool(void);
 int add_watchpoint(const char *expr);
 bool delete_watchpoint(int no);

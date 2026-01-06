@@ -129,9 +129,11 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Perform ISA dependent initialization. */
   init_isa();
+  extern bool npc_core_init(int argc, char *argv[]);
+  npc_core_init(argc, argv);
 
   /* Load the image to memory. This will overwrite the built-in image. */
-  long img_size = load_img();
+  long img_size = load_img(); // 先有了 init_mem, 才能有 load_img
 
   /* Initialize function tracer. */
   IFDEF(CONFIG_FTRACE, init_ftrace(img_file));

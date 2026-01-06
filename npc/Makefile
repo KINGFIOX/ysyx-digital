@@ -33,6 +33,7 @@ verilate: $(VERILATOR_LIB)
 $(VERILATOR_LIB): $(VERILATOR_SV)
 	@echo "=== Verilating $(VERILATOR_TOP) ==="
 	$(VERILATOR) --cc $(VERILATOR_SV) \
+		$(wildcard $(BUILD_DIR)/*.sv) \
 		--Mdir $(VERILATOR_MDIR) \
 		--top-module $(VERILATOR_TOP) \
 		--trace \

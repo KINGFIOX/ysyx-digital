@@ -17,8 +17,6 @@ config PC_RESET_OFFSET
 choice
   prompt "Physical memory definition"
   default PMEM_GARRAY
-config PMEM_MALLOC
-  bool "Using malloc()"
 config PMEM_GARRAY
   depends on !TARGET_AM
   bool "Using global array"
