@@ -88,18 +88,15 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
 
   ref_difftest_init(port);
   ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR), img_size, DIFFTEST_TO_REF);
-  ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
+  ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF); //
 }
 
 /// @return true: 一致
 /// @return false: 不一致
 static bool checkregs(const CPU_state *ref, vaddr_t pc) {
   if (!isa_difftest_checkregs(ref, pc)) {
-    npc_state.state = NPC_ABORT;
+    // npc_state.state = NPC_ABORT;
     npc_state.halt_pc = pc;
-    isa_reg_display();
-    printf("reference pc:\t0x%08x\n", ref->pc);
-    printf("npc pc:\t0x%08x\n", cpu.pc);
     return false;
   }
   return true;
