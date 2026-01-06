@@ -1,271 +1,375 @@
-// package component
+/** @brief
+  *   CU - 控制单元 (Control Unit)
+  *   根据指令生成各个模块的控制信号
+  */
 
-// import chisel3._
-// import chisel3.util._
-// import common.HasCoreParameter
-// import common.Instructions
-// import common.HasRegFileParameter
+package component
 
-// class ALUOPBundle extends Bundle {
-//   // 控制信号
-//   val calc = Output(ALUOpType())
-//   val op1  = Output(ALU_op1_sel())
-//   val op2  = Output(ALU_op2_sel())
-// }
+import chisel3._
+import chisel3.util._
+import common.HasCoreParameter
+import common.HasRegFileParameter
+import common.Instructions._
 
-// /* ---------- ---------- 控制信号线 ---------- ---------- */
+/** ALU 操作数1 选择 */
+object ALUOp1Sel extends ChiselEnum {
+  val OP1_RS1, OP1_PC, OP1_ZERO = Value
+}
 
-// class CUControlBundle extends Bundle {
-//   // 控制信号
-//   val alu    = new ALUOPBundle
-//   val op_mem = Output(MemUOpType())
-//   val wb_sel = Output(WB_sel())
-//   val npc_op = Output(NPCOpType())
-//   val bru_op = Output(BRUOpType())
-// }
+/** ALU 操作数2 选择 */
+object ALUOp2Sel extends ChiselEnum {
+  val OP2_RS2, OP2_IMM, OP2_4 = Value
+}
 
-// /** @brief
-//  *   解码，会生成一排控制信号。然后也会进行符号拓展操作, 输出寄存器的编号
-//  */
-// class CU extends Module with HasCoreParameter with HasRegFileParameter {
-//   val io = IO(new Bundle {
-//     val inst = Input(UInt(XLEN.W))
-//     val ctrl = new CUControlBundle // 控制线
-//     val imm  = Output(UInt(XLEN.W)) // 立即数: 正常情况下 SignExt, CSR 的时候 ZeroExt
-//   })
+/** 写回数据选择 */
+object WBSel extends ChiselEnum {
+  val WB_X, WB_ALU, WB_MEM, WB_PC4 = Value
+}
 
-//   // 最常见的还是 pc + 4
-//   io.ctrl.npc_op := NPCOpType.npc_4
+/** NPC 选择 (下一条 PC) */
+object NPCOpType extends ChiselEnum {
+  val NPC_4, NPC_BR, NPC_JAL, NPC_JALR = Value
+}
 
-//   /* ---------- default ---------- */
+/** CU 输出的控制信号 */
+class CUOutputBundle extends Bundle with HasRegFileParameter {
+  // ALU 控制
+  val aluOp   = Output(ALUOpType())
+  val aluOp1  = Output(ALUOp1Sel())
+  val aluOp2  = Output(ALUOp2Sel())
+  // 立即数类型
+  val immType = Output(ImmType())
+  // 内存操作
+  val memOp   = Output(MemUOpType())
+  val memEn   = Output(Bool()) // 内存使能
+  // 写回控制
+  val wbSel   = Output(WBSel())
+  val rfWen   = Output(Bool()) // 寄存器写使能
+  // 分支控制
+  val bruOp   = Output(BRUOpType())
+  val npcOp   = Output(NPCOpType())
+}
 
-//   // 控制信号
-//   io.ctrl.alu.calc := ALUOpType.alu_X
-//   io.ctrl.alu.op1  := ALU_op1_sel.alu_op1sel_ZERO
-//   io.ctrl.alu.op2  := ALU_op2_sel.alu_op2sel_ZERO
-//   io.ctrl.op_mem   := MemUOpType.mem_X
-//   io.ctrl.wb_sel   := WB_sel.wbsel_X
-//   io.ctrl.bru_op   := BRUOpType.bru_X
+class CU extends Module with HasCoreParameter with HasRegFileParameter {
+  val io = IO(new Bundle {
+    val inst = Input(UInt(XLEN.W))
+    val ctrl = new CUOutputBundle
+  })
 
-//   // 立即数
-//   io.imm := 0.U
+  private val inst = io.inst
 
-//   /* ---------- store ---------- */
+  /* ---------- 默认值 ---------- */
+  io.ctrl.aluOp   := ALUOpType.alu_ADD
+  io.ctrl.aluOp1  := ALUOp1Sel.OP1_ZERO
+  io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+  io.ctrl.immType := ImmType.IMM_I
+  io.ctrl.memOp   := MemUOpType.mem_LB // 默认值，memEn=false 时不生效
+  io.ctrl.memEn   := false.B
+  io.ctrl.wbSel   := WBSel.WB_X
+  io.ctrl.rfWen   := false.B
+  io.ctrl.bruOp   := BRUOpType.bru_X
+  io.ctrl.npcOp   := NPCOpType.NPC_4
 
-//   // sw rs2, offset(rs1) 存的是 rs2, 但是计算的是 op1=rs1 和 op2=offset
-//   private def store_inst(op: MemUOpType.Type) = {
-//     io.ctrl.alu.calc := ALUOpType.alu_ADD // rs1 + sext(offset)
-//     io.ctrl.alu.op1  := ALU_op1_sel.alu_op1sel_RS1 // rs1
-//     io.ctrl.alu.op2  := ALU_op2_sel.alu_op2sel_IMM // offset
-//     io.ctrl.op_mem   := op
-//     io.imm           := SignExt(io.inst(31, 25) ## io.inst(11, 7))
-//   }
-//   when(io.inst === Instructions.SW) {
-//     store_inst(MemUOpType.mem_SW)
-//   }
-//   when(io.inst === Instructions.SH) {
-//     store_inst(MemUOpType.mem_SH)
-//   }
-//   when(io.inst === Instructions.SB) {
-//     store_inst(MemUOpType.mem_SB)
-//   }
+  /* ---------- R-type: add rd, rs1, rs2 ---------- */
+  when(inst === ADD) {
+    io.ctrl.aluOp  := ALUOpType.alu_ADD
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
+  when(inst === SUB) {
+    io.ctrl.aluOp  := ALUOpType.alu_SUB
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
+  when(inst === AND) {
+    io.ctrl.aluOp  := ALUOpType.alu_AND
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
+  when(inst === OR) {
+    io.ctrl.aluOp  := ALUOpType.alu_OR
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
+  when(inst === XOR) {
+    io.ctrl.aluOp  := ALUOpType.alu_XOR
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
+  when(inst === SLL) {
+    io.ctrl.aluOp  := ALUOpType.alu_SLL
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
+  when(inst === SRL) {
+    io.ctrl.aluOp  := ALUOpType.alu_SRL
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
+  when(inst === SRA) {
+    io.ctrl.aluOp  := ALUOpType.alu_SRA
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
+  when(inst === SLT) {
+    io.ctrl.aluOp  := ALUOpType.alu_SLT
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
+  when(inst === SLTU) {
+    io.ctrl.aluOp  := ALUOpType.alu_SLTU
+    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.ctrl.wbSel  := WBSel.WB_ALU
+    io.ctrl.rfWen  := true.B
+  }
 
-//   /* ---------- load ---------- */
+  /* ---------- I-type 算术: addi rd, rs1, imm ---------- */
+  when(inst === ADDI) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === ANDI) {
+    io.ctrl.aluOp   := ALUOpType.alu_AND
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === ORI) {
+    io.ctrl.aluOp   := ALUOpType.alu_OR
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === XORI) {
+    io.ctrl.aluOp   := ALUOpType.alu_XOR
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === SLLI) {
+    io.ctrl.aluOp   := ALUOpType.alu_SLL
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === SRLI) {
+    io.ctrl.aluOp   := ALUOpType.alu_SRL
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === SRAI) {
+    io.ctrl.aluOp   := ALUOpType.alu_SRA
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === SLTI) {
+    io.ctrl.aluOp   := ALUOpType.alu_SLT
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === SLTIU) {
+    io.ctrl.aluOp   := ALUOpType.alu_SLTU
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
 
-//   // lw rd, offset(rs1)
-//   private def load_inst(op: MemUOpType.Type) = {
-//     io.ctrl.alu.calc := ALUOpType.alu_ADD // rs1 + sext(offset)
-//     io.ctrl.alu.op1  := ALU_op1_sel.alu_op1sel_RS1 // rs1
-//     io.ctrl.alu.op2  := ALU_op2_sel.alu_op2sel_IMM // offset
-//     io.imm           := SignExt(io.inst(31, 20))
-//     io.ctrl.op_mem   := op
-//     io.ctrl.wb_sel   := WB_sel.wbsel_MEM
-//   }
-//   when(io.inst === Instructions.LB) {
-//     load_inst(MemUOpType.mem_LB)
-//   }
-//   when(io.inst === Instructions.LBU) {
-//     load_inst(MemUOpType.mem_LBU)
-//   }
-//   when(io.inst === Instructions.LH) {
-//     load_inst(MemUOpType.mem_LH)
-//   }
-//   when(io.inst === Instructions.LHU) {
-//     load_inst(MemUOpType.mem_LHU)
-//   }
-//   when(io.inst === Instructions.LW) {
-//     load_inst(MemUOpType.mem_LW)
-//   }
+  /* ---------- Load: lw rd, offset(rs1) ---------- */
+  when(inst === LB) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.memOp   := MemUOpType.mem_LB
+    io.ctrl.memEn   := true.B
+    io.ctrl.wbSel   := WBSel.WB_MEM
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === LH) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.memOp   := MemUOpType.mem_LH
+    io.ctrl.memEn   := true.B
+    io.ctrl.wbSel   := WBSel.WB_MEM
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === LW) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.memOp   := MemUOpType.mem_LW
+    io.ctrl.memEn   := true.B
+    io.ctrl.wbSel   := WBSel.WB_MEM
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === LBU) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.memOp   := MemUOpType.mem_LBU
+    io.ctrl.memEn   := true.B
+    io.ctrl.wbSel   := WBSel.WB_MEM
+    io.ctrl.rfWen   := true.B
+  }
+  when(inst === LHU) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.memOp   := MemUOpType.mem_LHU
+    io.ctrl.memEn   := true.B
+    io.ctrl.wbSel   := WBSel.WB_MEM
+    io.ctrl.rfWen   := true.B
+  }
 
-//   /* ---------- R-type ---------- */
+  /* ---------- Store: sw rs2, offset(rs1) ---------- */
+  when(inst === SB) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_S
+    io.ctrl.memOp   := MemUOpType.mem_SB
+    io.ctrl.memEn   := true.B
+  }
+  when(inst === SH) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_S
+    io.ctrl.memOp   := MemUOpType.mem_SH
+    io.ctrl.memEn   := true.B
+  }
+  when(inst === SW) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_S
+    io.ctrl.memOp   := MemUOpType.mem_SW
+    io.ctrl.memEn   := true.B
+  }
 
-//   // add rd, rs1, rs2
-//   private def R_inst(op: ALUOpType.Type) = {
-//     io.ctrl.alu.calc := op
-//     io.ctrl.alu.op1  := ALU_op1_sel.alu_op1sel_RS1
-//     io.ctrl.alu.op2  := ALU_op2_sel.alu_op2sel_RS2
-//     io.ctrl.wb_sel   := WB_sel.wbsel_ALU
-//   }
-//   when(io.inst === Instructions.ADD) {
-//     R_inst(ALUOpType.alu_ADD)
-//   }
-//   when(io.inst === Instructions.SUB) {
-//     R_inst(ALUOpType.alu_SUB)
-//   }
-//   when(io.inst === Instructions.AND) {
-//     R_inst(ALUOpType.alu_AND)
-//   }
-//   when(io.inst === Instructions.OR) {
-//     R_inst(ALUOpType.alu_OR)
-//   }
-//   when(io.inst === Instructions.XOR) {
-//     R_inst(ALUOpType.alu_XOR)
-//   }
-//   when(io.inst === Instructions.SLL) {
-//     R_inst(ALUOpType.alu_SLL)
-//   }
-//   when(io.inst === Instructions.SRL) {
-//     R_inst(ALUOpType.alu_SRL)
-//   }
-//   when(io.inst === Instructions.SRA) {
-//     R_inst(ALUOpType.alu_SRA)
-//   }
-//   when(io.inst === Instructions.SLT) {
-//     R_inst(ALUOpType.alu_SLT)
-//   }
-//   when(io.inst === Instructions.SLTU) {
-//     R_inst(ALUOpType.alu_SLTU)
-//   }
+  /* ---------- Branch: beq rs1, rs2, offset ---------- */
+  when(inst === BEQ) {
+    io.ctrl.bruOp   := BRUOpType.bru_BEQ
+    io.ctrl.immType := ImmType.IMM_B
+    io.ctrl.npcOp   := NPCOpType.NPC_BR
+  }
+  when(inst === BNE) {
+    io.ctrl.bruOp   := BRUOpType.bru_BNE
+    io.ctrl.immType := ImmType.IMM_B
+    io.ctrl.npcOp   := NPCOpType.NPC_BR
+  }
+  when(inst === BLT) {
+    io.ctrl.bruOp   := BRUOpType.bru_BLT
+    io.ctrl.immType := ImmType.IMM_B
+    io.ctrl.npcOp   := NPCOpType.NPC_BR
+  }
+  when(inst === BGE) {
+    io.ctrl.bruOp   := BRUOpType.bru_BGE
+    io.ctrl.immType := ImmType.IMM_B
+    io.ctrl.npcOp   := NPCOpType.NPC_BR
+  }
+  when(inst === BLTU) {
+    io.ctrl.bruOp   := BRUOpType.bru_BLTU
+    io.ctrl.immType := ImmType.IMM_B
+    io.ctrl.npcOp   := NPCOpType.NPC_BR
+  }
+  when(inst === BGEU) {
+    io.ctrl.bruOp   := BRUOpType.bru_BGEU
+    io.ctrl.immType := ImmType.IMM_B
+    io.ctrl.npcOp   := NPCOpType.NPC_BR
+  }
 
-//   /* ---------- I-type ---------- */
+  /* ---------- JAL: jal rd, offset ---------- */
+  when(inst === JAL) {
+    io.ctrl.immType := ImmType.IMM_J
+    io.ctrl.npcOp   := NPCOpType.NPC_JAL
+    io.ctrl.wbSel   := WBSel.WB_PC4
+    io.ctrl.rfWen   := true.B
+  }
 
-//   private def Imm_inst(op: ALUOpType.Type) = {
-//     io.ctrl.alu.calc := op
-//     io.ctrl.alu.op1  := ALU_op1_sel.alu_op1sel_RS1
-//     io.ctrl.alu.op2  := ALU_op2_sel.alu_op2sel_IMM
-//     io.imm           := SignExt(io.inst(31, 20))
-//     io.ctrl.wb_sel   := WB_sel.wbsel_ALU
-//   }
-//   when(io.inst === Instructions.ADDI) {
-//     Imm_inst(ALUOpType.alu_ADD)
-//   }
-//   when(io.inst === Instructions.ANDI) {
-//     Imm_inst(ALUOpType.alu_AND)
-//   }
-//   when(io.inst === Instructions.ORI) {
-//     Imm_inst(ALUOpType.alu_OR)
-//   }
-//   when(io.inst === Instructions.XORI) {
-//     Imm_inst(ALUOpType.alu_XOR)
-//   }
-//   when(io.inst === Instructions.SLLI) {
-//     Imm_inst(ALUOpType.alu_SLL)
-//   }
-//   when(io.inst === Instructions.SRLI) {
-//     Imm_inst(ALUOpType.alu_SRL)
-//   }
-//   when(io.inst === Instructions.SRAI) {
-//     Imm_inst(ALUOpType.alu_SRA)
-//   }
-//   when(io.inst === Instructions.SLTI) {
-//     Imm_inst(ALUOpType.alu_SLT)
-//   }
-//   when(io.inst === Instructions.SLTIU) {
-//     Imm_inst(ALUOpType.alu_SLTU)
-//   }
+  /* ---------- JALR: jalr rd, rs1, offset ---------- */
+  when(inst === JALR) {
+    io.ctrl.immType := ImmType.IMM_I
+    io.ctrl.npcOp   := NPCOpType.NPC_JALR
+    io.ctrl.wbSel   := WBSel.WB_PC4
+    io.ctrl.rfWen   := true.B
+  }
 
-//   /* ---------- Branch ---------- */
+  /* ---------- LUI: lui rd, imm ---------- */
+  when(inst === LUI) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_ZERO
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_U
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
 
-//   private def Branch_inst(op: BRUOpType.Type) = {
-//     io.ctrl.bru_op := op
-//     io.imm         := SignExt(io.inst(31) ## io.inst(7) ## io.inst(30, 25) ## io.inst(11, 8) ## 0.U(1.W))
-//     io.ctrl.npc_op := NPCOpType.npc_BR
-//   }
+  /* ---------- AUIPC: auipc rd, imm ---------- */
+  when(inst === AUIPC) {
+    io.ctrl.aluOp   := ALUOpType.alu_ADD
+    io.ctrl.aluOp1  := ALUOp1Sel.OP1_PC
+    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.ctrl.immType := ImmType.IMM_U
+    io.ctrl.wbSel   := WBSel.WB_ALU
+    io.ctrl.rfWen   := true.B
+  }
+}
 
-//   when(io.inst === Instructions.BEQ) {
-//     Branch_inst(BRUOpType.bru_BEQ)
-//   }
-//   when(io.inst === Instructions.BNE) {
-//     Branch_inst(BRUOpType.bru_BNE)
-//   }
-//   when(io.inst === Instructions.BGE) {
-//     Branch_inst(BRUOpType.bru_BGE)
-//   }
-//   when(io.inst === Instructions.BGEU) {
-//     Branch_inst(BRUOpType.bru_BGEU)
-//   }
-//   when(io.inst === Instructions.BLT) {
-//     Branch_inst(BRUOpType.bru_BLT)
-//   }
-//   when(io.inst === Instructions.BLTU) {
-//     Branch_inst(BRUOpType.bru_BLTU)
-//   }
-
-//   /* ---------- JALR ---------- */
-
-//   when(io.inst === Instructions.JALR) {
-//     io.imm         := SignExt(io.inst(31, 20))
-//     io.ctrl.npc_op := NPCOpType.npc_JALR
-//     io.ctrl.wb_sel := WB_sel.wbsel_PC4
-//   }
-
-//   /* ---------- JAL ---------- */
-
-//   when(io.inst === Instructions.JAL) {
-//     io.imm         := SignExt(io.inst(31) /* 20 */ ## io.inst(19, 12) /* 19:12 */ ## io.inst(20) /* 11 */ ## io.inst(30, 21) /* 10:1 */ ## 0.U(1.W) /* 0 */ )
-//     io.ctrl.npc_op := NPCOpType.npc_JAL
-//     io.ctrl.wb_sel := WB_sel.wbsel_PC4
-//   }
-
-//   /* ---------- LUI ---------- */
-
-//   when(io.inst === Instructions.LUI) {
-//     io.ctrl.alu.calc := ALUOpType.alu_ADD
-//     io.ctrl.alu.op1  := ALU_op1_sel.alu_op1sel_ZERO /* 就是啥也不干 */
-//     io.ctrl.alu.op2  := ALU_op2_sel.alu_op2sel_IMM
-//     io.imm           := io.inst(31, 12) ## 0.U(12.W) /* 当然这个移位步骤可以移到 ALU(EXE-stage) */
-//     io.ctrl.wb_sel   := WB_sel.wbsel_ALU
-//   }
-
-//   /* ---------- AUIPC ---------- */
-
-//   when(io.inst === Instructions.AUIPC) {
-//     io.ctrl.alu.calc := ALUOpType.alu_ADD
-//     io.ctrl.alu.op1  := ALU_op1_sel.alu_op1sel_PC
-//     io.ctrl.alu.op2  := ALU_op2_sel.alu_op2sel_IMM
-//     io.imm           := io.inst(31, 12) ## 0.U(12.W)
-//     io.ctrl.wb_sel   := WB_sel.wbsel_ALU
-//   }
-
-// }
-
-// object CU extends App {
-//   val s = _root_.circt.stage.ChiselStage.emitSystemVerilogFile(
-//     new CU,
-//     args = Array("--target-dir", "generated"),
-//     firtoolOpts = Array(
-//       "--strip-debug-info",
-//       "-disable-all-randomization"
-//     )
-//   )
-// }
-
-// object CUTest extends App {
-//   val s = _root_.circt.stage.ChiselStage.emitSystemVerilogFile(
-//     new Module {
-//       val io = IO(new Bundle {
-//         val inst    = Input(UInt(32.W))
-//         val is_addi = Output(Bool())
-//       })
-//       io.is_addi := false.B
-//       when(io.inst === Instructions.ADDI) {
-//         io.is_addi := true.B
-//       }
-//     },
-//     args = Array("--target-dir", "generated"),
-//     firtoolOpts = Array(
-//       "--strip-debug-info",
-//       "-disable-all-randomization"
-//     )
-//   )
-// }
+object CU extends App {
+  val firtoolOptions = Array(
+    "--lowering-options=" + List(
+      "disallowLocalVariables",
+      "disallowPackedArrays",
+      "locationInfoStyle=wrapInAtSquareBracket"
+    ).reduce(_ + "," + _)
+  )
+  _root_.circt.stage.ChiselStage.emitSystemVerilogFile(new CU, args, firtoolOptions)
+}

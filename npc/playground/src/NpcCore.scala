@@ -3,118 +3,137 @@ package npc
 import chisel3._
 import chisel3.util._
 
-import blackbox.{DpiPmemRead, DpiPmemWrite}
+import common.{HasCoreParameter, HasRegFileParameter}
+import component._
 
-/** 用来给 Verilator 暴露提交信息, 便于在 C++ 侧采样做差分测试
-  */
-class CommitBundle extends Bundle {
-  val valid  = Output(Bool())     // commit valid
-  val pc     = Output(UInt(32.W)) // s->pc
-  val nextPc = Output(UInt(32.W)) // s->dnpc
-  val inst   = Output(UInt(32.W))
-  val gpr    = Output(Vec(32, UInt(32.W)))
+/** 用来给 Verilator 暴露提交信息, 便于在 C++ 侧采样做差分测试 */
+class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter {
+  val valid  = Output(Bool())
+  val pc     = Output(UInt(XLEN.W))
+  val nextPc = Output(UInt(XLEN.W))
+  val inst   = Output(UInt(XLEN.W))
+  val gpr    = Output(Vec(NRReg, UInt(XLEN.W)))
 }
 
-class NpcCoreTop extends Module {
+class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   val io = IO(new Bundle {
     val step   = Input(Bool())    // 单步触发 (宿主侧拉高一个周期)
     val commit = new CommitBundle // 提交信息, 供 difftest 使用
   })
 
-  val pcReg = RegInit("h80000000".U(32.W)) /* RESET_ */
-  val gpr   = RegInit(VecInit(Seq.fill(32)(0.U(32.W))))
+  /* ========== 实例化各模块 ========== */
+  val ifu  = Module(new IFU)
+  val cu   = Module(new CU)
+  val extU = Module(new ExtU)
+  val rfu  = Module(new RFU)
+  val alu  = Module(new ALU)
+  val bru  = Module(new BRU)
+  val memU = Module(new MemU)
 
-  gpr(0) := 0.U
-
-  // ========== DPI-C 内存接口 ==========
-  val pmemRead  = Module(new DpiPmemRead)
-  val pmemWrite = Module(new DpiPmemWrite)
-
-  // ========== 取指 (组合逻辑) ==========
-  // 只在 step 有效时才进行取指, 避免 reset/idle 期间的无效内存访问
-  pmemRead.io.en   := io.step
-  pmemRead.io.addr := pcReg
-  pmemRead.io.len  := 4.U // 32位指令
-  val inst = pmemRead.io.data
-
-  // ========== 译码 ==========
-  // 指令字段提取
-  val opcode = inst(6, 0)
+  /* ========== 指令字段提取 ========== */
+  val inst   = ifu.io.out.inst
+  val pc     = ifu.io.out.pc
+  val snpc   = ifu.io.out.snpc
   val rd     = inst(11, 7)
-  val funct3 = inst(14, 12)
   val rs1    = inst(19, 15)
   val rs2    = inst(24, 20)
 
-  // 立即数提取
-  // I-type: imm[11:0] = inst[31:20]
-  val immI = Cat(Fill(20, inst(31)), inst(31, 20))
-  // S-type: imm[11:0] = {inst[31:25], inst[11:7]}
-  val immS = Cat(Fill(20, inst(31)), inst(31, 25), inst(11, 7))
-  // U-type: imm[31:12] = inst[31:12], imm[11:0] = 0
-  val immU = Cat(inst(31, 12), 0.U(12.W))
+  /* ========== 控制单元 ========== */
+  cu.io.inst := inst
 
-  // 操作码定义
-  val OP_LOAD  = "b0000011".U // I-type load
-  val OP_STORE = "b0100011".U // S-type store
-  val OP_AUIPC = "b0010111".U // U-type auipc
+  /* ========== 立即数扩展 ========== */
+  extU.io.in.inst    := inst
+  extU.io.in.immType := cu.io.ctrl.immType
+  val imm = extU.io.out.imm
 
-  // 寄存器读取
-  val rs1Data = Mux(rs1 === 0.U, 0.U, gpr(rs1))
-  val rs2Data = Mux(rs2 === 0.U, 0.U, gpr(rs2))
+  /* ========== 寄存器堆读取 ========== */
+  rfu.io.in.rs1_i := rs1
+  rfu.io.in.rs2_i := rs2
+  rfu.io.in.rd_i  := rd
+  val rs1Data = rfu.io.out.rs1_v
+  val rs2Data = rfu.io.out.rs2_v
 
-  // ========== 执行 ==========
-  // AUIPC: rd = pc + (imm << 12) = pc + immU
-  val auipcResult = pcReg + immU
+  /* ========== ALU 操作数选择 ========== */
+  alu.io.in.op1 := MuxCase(
+    0.U,
+    Seq(
+      (cu.io.ctrl.aluOp1 === ALUOp1Sel.OP1_RS1)  -> rs1Data,
+      (cu.io.ctrl.aluOp1 === ALUOp1Sel.OP1_PC)   -> pc,
+      (cu.io.ctrl.aluOp1 === ALUOp1Sel.OP1_ZERO) -> 0.U
+    )
+  )
+  alu.io.in.op2 := MuxCase(
+    0.U,
+    Seq(
+      (cu.io.ctrl.aluOp2 === ALUOp2Sel.OP2_RS2) -> rs2Data,
+      (cu.io.ctrl.aluOp2 === ALUOp2Sel.OP2_IMM) -> imm,
+      (cu.io.ctrl.aluOp2 === ALUOp2Sel.OP2_4)   -> 4.U
+    )
+  )
+  alu.io.in.aluOp := cu.io.ctrl.aluOp
+  val aluResult = alu.io.out.result
 
-  // Load/Store 地址计算
-  val loadAddr  = rs1Data + immI
-  val storeAddr = rs1Data + immS
+  /* ========== 分支单元 ========== */
+  bru.io.in.rs1_v  := rs1Data
+  bru.io.in.rs2_v  := rs2Data
+  bru.io.in.bru_op := cu.io.ctrl.bruOp
+  val brTaken = bru.io.br_flag
 
-  // 内存读取 (用于 Load) - 仅在 step 有效且是 Load 指令时使能
-  val loadMemRead = Module(new DpiPmemRead)
-  loadMemRead.io.en   := io.step && (opcode === OP_LOAD)
-  loadMemRead.io.addr := loadAddr
-  loadMemRead.io.len  := 1.U // LBU 读取1字节
+  /* ========== 内存单元 ========== */
+  memU.io.en       := io.step && cu.io.ctrl.memEn
+  memU.io.in.op    := cu.io.ctrl.memOp
+  memU.io.in.addr  := aluResult // ALU 计算出的地址
+  memU.io.in.wdata := rs2Data   // Store 的数据
+  val memData = memU.io.out.rdata
 
-  // LBU: 零扩展字节
-  val lbuResult = Cat(0.U(24.W), loadMemRead.io.data(7, 0))
-
-  // 内存写入控制 - 仅在 step 有效时执行写入
-  val storeEn = io.step && (opcode === OP_STORE) && (funct3 === "b000".U)
-  pmemWrite.io.en   := storeEn
-  pmemWrite.io.addr := storeAddr
-  pmemWrite.io.len  := 1.U           // SB 写入1字节
-  pmemWrite.io.data := rs2Data(7, 0) // 只取低8位
-
-  // 写回数据选择
+  /* ========== 写回数据选择 ========== */
   val wbData = MuxCase(
     0.U,
     Seq(
-      (opcode === OP_AUIPC) -> auipcResult,
-      (opcode === OP_LOAD)  -> lbuResult
+      (cu.io.ctrl.wbSel === WBSel.WB_ALU) -> aluResult,
+      (cu.io.ctrl.wbSel === WBSel.WB_MEM) -> memData,
+      (cu.io.ctrl.wbSel === WBSel.WB_PC4) -> snpc
     )
   )
 
-  // 是否写回寄存器
-  val wbEn = (opcode === OP_AUIPC) || (opcode === OP_LOAD && funct3 === "b100".U)
+  /* ========== 寄存器堆写入 ========== */
+  rfu.io.in.wdata := wbData
+  rfu.io.in.wen   := io.step && cu.io.ctrl.rfWen // 只在 step 有效时写入
 
-  // 下一条指令的 PC (顺序执行)
-  val nextPc = pcReg + 4.U
+  /* ========== 下一条 PC 计算 ========== */
+  val dnpc = MuxCase(
+    snpc, // 默认: PC + 4
+    Seq(
+      // JAL: PC + imm
+      (cu.io.ctrl.npcOp === NPCOpType.NPC_JAL) -> (pc + imm),
+      // JALR: (rs1 + imm) & ~1
+      (cu.io.ctrl.npcOp === NPCOpType.NPC_JALR) -> ((rs1Data + imm) & (~1.U(XLEN.W))),
+      // Branch: 如果条件满足则 PC + imm, 否则 PC + 4
+      (cu.io.ctrl.npcOp === NPCOpType.NPC_BR && brTaken) -> (pc + imm)
+    )
+  )
 
-  // ========== 单周期执行: 当 step 有效时完成所有操作 ==========
-  when(io.step) {
-    // 写回寄存器 (排除 x0)
-    when(wbEn && rd =/= 0.U) {
-      gpr(rd) := wbData
-    }
-    // 更新 PC
-    pcReg := nextPc
-  }
+  /* ========== IFU 连接 ========== */
+  // dnpc 只在 step 有效时更新
+  ifu.io.in.dnpc := Mux(io.step, dnpc, pc)
 
-  // ========== 输出 ==========
-  io.commit.valid  := io.step // 单周期CPU, 同一周期的 step, 同一周期 commit
-  io.commit.pc     := pcReg   // commit 的这条指令, 对应的PC
-  io.commit.nextPc := nextPc  //
-  io.commit.inst   := inst    //
-  io.commit.gpr    := gpr
+  /* ========== Commit 输出 (供 difftest) ========== */
+  io.commit.valid  := io.step
+  io.commit.pc     := pc
+  io.commit.nextPc := dnpc
+  io.commit.inst   := inst
+
+  // 输出寄存器堆 (从 RFU 读取所有寄存器)
+  io.commit.gpr := rfu.io.out.gpr
+}
+
+object NpcCoreTop extends App {
+  val firtoolOptions = Array(
+    "--lowering-options=" + List(
+      "disallowLocalVariables",
+      "disallowPackedArrays",
+      "locationInfoStyle=wrapInAtSquareBracket"
+    ).reduce(_ + "," + _)
+  )
+  _root_.circt.stage.ChiselStage.emitSystemVerilogFile(new NpcCoreTop, args, firtoolOptions)
 }

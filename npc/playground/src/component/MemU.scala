@@ -71,14 +71,17 @@ class MemU extends Module with HasCoreParameter {
     )
   )
 
+  // 当不使能时，传一个安全的默认地址，避免 DPI 侧越界检查失败
+  private val safeAddr = Mux(io.en, io.in.addr, "h80000000".U(XLEN.W))
+
   /* ---------- DPI 读取控制 ---------- */
   pmemRead.io.en   := io.en && isLoad
-  pmemRead.io.addr := io.in.addr
+  pmemRead.io.addr := safeAddr
   pmemRead.io.len  := readLen
 
   /* ---------- DPI 写入控制 ---------- */
   pmemWrite.io.en   := io.en && isStore
-  pmemWrite.io.addr := io.in.addr
+  pmemWrite.io.addr := safeAddr
   pmemWrite.io.len  := writeLen
   pmemWrite.io.data := io.in.wdata // DPI 侧会根据 len 和 addr 处理字节选择
 
