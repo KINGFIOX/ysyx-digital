@@ -137,28 +137,27 @@ static void exec_once(Decode *s, vaddr_t pc /*always pc = cpu.pc*/) {
   s->snpc = pc; // static next pc
   isa_exec_once(s);
   cpu.pc = s->dnpc;
-
-#ifdef CONFIG_ITRACE
-  // 生成日志(完整)
-  bool ret = gen_logbuf(s->logbuf, sizeof(s->logbuf), s->pc, s->snpc, &s->isa);
-  Assert(ret, "disassemble failed"); // 不可能失败
-
-  // 最近的 CONFIG_IRINGBUF_SIZE 条指令
-  g_iringbuf.items[g_iringbuf.ptr].isa = s->isa;
-  g_iringbuf.items[g_iringbuf.ptr].pc = s->pc;
-  g_iringbuf.items[g_iringbuf.ptr].snpc = s->snpc;
-  if (g_iringbuf.count < CONFIG_IRINGBUF_SIZE) {
-    g_iringbuf.count++;
-  }
-  g_iringbuf.ptr = (g_iringbuf.ptr + 1) % CONFIG_IRINGBUF_SIZE; // loop back
-
-#endif
 }
 
 static void execute(uint64_t n) {
   Decode s;
   for (; n > 0; n--) {
     exec_once(&s, cpu.pc);
+
+#ifdef CONFIG_ITRACE
+    // 生成日志(完整)
+    bool ret = gen_logbuf(s.logbuf, sizeof(s.logbuf), s.pc, s.snpc, &s.isa);
+    Assert(ret, "disassemble failed"); // 不可能失败
+    // 最近的 CONFIG_IRINGBUF_SIZE 条指令
+    g_iringbuf.items[g_iringbuf.ptr].isa = s.isa;
+    g_iringbuf.items[g_iringbuf.ptr].pc = s.pc;
+    g_iringbuf.items[g_iringbuf.ptr].snpc = s.snpc;
+    if (g_iringbuf.count < CONFIG_IRINGBUF_SIZE) {
+      g_iringbuf.count++;
+    }
+    g_iringbuf.ptr = (g_iringbuf.ptr + 1) % CONFIG_IRINGBUF_SIZE; // loop back
+#endif
+
     g_nr_guest_inst++;
     trace_and_difftest(&s, cpu.pc);
     if (npc_state.state != NPC_RUNNING)

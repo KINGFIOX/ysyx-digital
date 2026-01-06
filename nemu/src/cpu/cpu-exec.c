@@ -14,14 +14,14 @@
  ***************************************************************************************/
 
 #include "../monitor/sdb/sdb.h"
-#include <device/map.h>
 #include "isa.h"
 #include <cpu/cpu.h>
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
+#include <device/map.h>
+#include <ftrace.h>
 #include <locale.h>
 #include <memory/vaddr.h>
-#include <ftrace.h>
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -57,7 +57,8 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 }
 
 #ifdef CONFIG_ITRACE
-bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc, const ISADecodeInfo *isa) {
+bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
+                const ISADecodeInfo *isa) {
   // 效果:
   // 0x80000000: 00 00 02 97 auipc   t0, 0
   char *p = logbuf;
@@ -69,12 +70,14 @@ bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc, const ISADe
   }
   int ilen_max = 4;
   int space_len = ilen_max - ilen;
-  if (space_len < 0) space_len = 0;
+  if (space_len < 0)
+    space_len = 0;
   space_len = space_len * 3 + 1;
   memset(p, ' ', space_len); // 打印一些空格, 用来对齐的
   p += space_len;
 
-  bool ret = disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
+  bool ret =
+      disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
   if (!ret) {
     logbuf[0] = '\0';
     return false;
@@ -102,16 +105,19 @@ static struct {
   _Log(ANSI_FMT(format, ANSI_FG_BLUE) "\n", ##__VA_ARGS__)
 
 static void dump_iringbuf(void) {
-  if (g_iringbuf.count == 0) return;
+  if (g_iringbuf.count == 0)
+    return;
 
   Log("Last %d instructions:", CONFIG_IRINGBUF_SIZE);
   char logbuf[128];
   const size_t valid = g_iringbuf.count;
-  const size_t start = (g_iringbuf.ptr + CONFIG_IRINGBUF_SIZE - valid) % CONFIG_IRINGBUF_SIZE;
+  const size_t start =
+      (g_iringbuf.ptr + CONFIG_IRINGBUF_SIZE - valid) % CONFIG_IRINGBUF_SIZE;
 
   for (size_t idx = 0; idx < valid; idx++) {
     size_t pos = (start + idx) % CONFIG_IRINGBUF_SIZE;
-    bool ret = gen_logbuf(logbuf, sizeof(logbuf), g_iringbuf.items[pos].pc,
+    bool ret =
+        gen_logbuf(logbuf, sizeof(logbuf), g_iringbuf.items[pos].pc,
                    g_iringbuf.items[pos].snpc, &g_iringbuf.items[pos].isa);
     if (!ret)
       continue; // 理论不会失败
@@ -131,28 +137,27 @@ static void exec_once(Decode *s, vaddr_t pc /*always pc = cpu.pc*/) {
   s->snpc = pc; // static next pc
   isa_exec_once(s);
   cpu.pc = s->dnpc;
-
-#ifdef CONFIG_ITRACE
-  // 生成日志(完整)
-  bool ret = gen_logbuf(s->logbuf, sizeof(s->logbuf), s->pc, s->snpc, &s->isa);
-  Assert(ret, "disassemble failed"); // 不可能失败
-
-  // 最近的 CONFIG_IRINGBUF_SIZE 条指令
-  g_iringbuf.items[g_iringbuf.ptr].isa = s->isa;
-  g_iringbuf.items[g_iringbuf.ptr].pc = s->pc;
-  g_iringbuf.items[g_iringbuf.ptr].snpc = s->snpc;
-  if (g_iringbuf.count < CONFIG_IRINGBUF_SIZE) {
-    g_iringbuf.count++;
-  }
-  g_iringbuf.ptr = (g_iringbuf.ptr + 1) % CONFIG_IRINGBUF_SIZE; // loop back
-
-#endif
 }
 
 static void execute(uint64_t n) {
   Decode s;
   for (; n > 0; n--) {
     exec_once(&s, cpu.pc);
+
+#ifdef CONFIG_ITRACE
+    // 生成日志(完整)
+    bool ret = gen_logbuf(s.logbuf, sizeof(s.logbuf), s.pc, s.snpc, &s.isa);
+    Assert(ret, "disassemble failed"); // 不可能失败
+    // 最近的 CONFIG_IRINGBUF_SIZE 条指令
+    g_iringbuf.items[g_iringbuf.ptr].isa = s.isa;
+    g_iringbuf.items[g_iringbuf.ptr].pc = s.pc;
+    g_iringbuf.items[g_iringbuf.ptr].snpc = s.snpc;
+    if (g_iringbuf.count < CONFIG_IRINGBUF_SIZE) {
+      g_iringbuf.count++;
+    }
+    g_iringbuf.ptr = (g_iringbuf.ptr + 1) % CONFIG_IRINGBUF_SIZE; // loop back
+#endif
+
     g_nr_guest_inst++;
     trace_and_difftest(&s, cpu.pc);
     if (nemu_state.state != NEMU_RUNNING)
@@ -177,16 +182,16 @@ static void statistic() {
 void assert_fail_msg() {
   isa_reg_display();
 #ifdef CONFIG_ITRACE
-    dump_iringbuf();
+  dump_iringbuf();
 #endif
 #ifdef CONFIG_MTRACE
-    mtrace_dump();
+  mtrace_dump();
 #endif
 #ifdef CONFIG_DTRACE
-    dtrace_dump();
+  dtrace_dump();
 #endif
 #ifdef CONFIG_FTRACE
-    ftrace_dump();
+  ftrace_dump();
 #endif
   statistic();
 }

@@ -14,7 +14,7 @@
 #**************************************************************************************/
 
 # Sanity check
-ifeq ($(wildcard $(NPC_HOME)/src/npc-main.c),)
+ifeq ($(wildcard $(NPC_HOME)/src/npc-main.cc),)
   $(error NPC_HOME=$(NPC_HOME) is not a NPC repo)
 endif
 
@@ -114,7 +114,7 @@ override ARGS += $(ARGS_DIFF)
 
 # Command to execute NPC
 IMG ?=
-NPC_EXEC := $(BINARY) -b $(ARGS) $(IMG)
+NPC_EXEC := $(BINARY) $(ARGS) $(IMG)
 
 run-env: $(BINARY) $(DIFF_REF_SO)
 
