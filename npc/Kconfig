@@ -24,19 +24,33 @@ source "src/isa/riscv32/Kconfig"
 endif
 
 choice
-  prompt "NEMU execution engine"
-  default ENGINE_INTERPRETER
+  prompt "NPC execution engine"
+  default ENGINE_VERILATOR
 
-config ENGINE_INTERPRETER
-  bool "Interpreter"
+config ENGINE_VERILATOR
+  bool "Verilator (RTL simulation)"
   help
-    Interpreter guest instructions one by one.
+    Use Verilator to simulate the CPU core RTL design.
+    Requires running 'make verilate' first.
 endchoice
 
 config ENGINE
   string
-  default "interpreter" if ENGINE_INTERPRETER
+  default "verilator" if ENGINE_VERILATOR
   default "none"
+
+config VERILATOR
+  bool
+  default y if ENGINE_VERILATOR
+  default n
+
+config VERILATOR_TRACE
+  depends on VERILATOR
+  bool "Enable Verilator VCD waveform trace"
+  default n
+  help
+    Generate VCD waveform file for debugging.
+    Output: build/npc_core.vcd
 
 choice
   prompt "Running mode"
@@ -128,7 +142,7 @@ config TRACE_END
   default 10000
 
 config ITRACE
-  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable instruction tracer"
   default y
 
@@ -143,7 +157,7 @@ config IRINGBUF_SIZE
   default 16
 
 config FTRACE
-  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable function tracer"
   default y
 
@@ -158,7 +172,7 @@ config FTRACE_LOG_SIZE
   default 512
 
 config MTRACE
-  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable memory tracer"
   default y
 
@@ -168,7 +182,7 @@ config MTRACE_COND
   default "true"
 
 config DTRACE
-  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable device tracer"
   default y
 

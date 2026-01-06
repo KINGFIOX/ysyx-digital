@@ -13,26 +13,12 @@
  * See the Mulan PSL v2 for more details.
  ***************************************************************************************/
 
-#include <common.h>
-#include <cpu/core.h>
+#include <cpu/cpu.h>
 
-extern "C" {
-void init_monitor(int, char *[]);
-void am_init_monitor();
-void engine_start();
-int is_exit_status_bad();
+void sdb_mainloop();
+
+void engine_start() {
+  /* Receive commands from user. */
+  sdb_mainloop();
 }
 
-int main(int argc, char *argv[]) {
-
-  /* Initialize the monitor. */
-  init_monitor(argc, argv);
-
-  /* Start engine. */
-  engine_start();
-
-  /* Finalize the CPU core (cleanup Verilator resources). */
-  npc_core_fini();
-
-  return is_exit_status_bad();
-}

@@ -229,10 +229,11 @@ void cpu_exec(uint64_t n) {
   switch (npc_state.state) {
   case NPC_RUNNING:
     npc_state.state = NPC_STOP;
-    break;
+    break; // 重新回到 sdb 的 mainloop 中, 等待用户的命令
 
-  case NPC_END:
-  case NPC_ABORT:
+  // 下面几个状态, 运行结束
+  case NPC_END: // guest 程序执行完成
+  case NPC_ABORT: // host 内部错误
     Log("npc: %s at pc = " FMT_WORD,
         (npc_state.state == NPC_ABORT
              ? ANSI_FMT("ABORT", ANSI_FG_RED)

@@ -6,17 +6,36 @@ VERILATOR ?= verilator
 VERILATOR_TOP ?= NpcCoreTop
 VERILATOR_SV  := $(BUILD_DIR)/$(VERILATOR_TOP).sv
 VERILATOR_MDIR := $(BUILD_DIR)/obj-verilator
+VERILATOR_MK  := $(VERILATOR_MDIR)/V$(VERILATOR_TOP).mk
+VERILATOR_LIB := $(VERILATOR_MDIR)/V$(VERILATOR_TOP)__ALL.a
 
+# =============================== 构建 NPC 可执行文件 ===============================
+# 完整构建: Chisel -> Verilog -> Verilator -> C++ 链接
+build-npc: verilate
+	$(MAKE) -f scripts/native.mk NPC_HOME=$(NPC_HOME)
+
+# =============================== Chisel -> Verilog ===============================
 test:
 	mill -i $(PRJ).test
 
-verilog:
+verilog: $(VERILATOR_SV)
+
+$(VERILATOR_SV):
 	$(call git_commit, "generate verilog")
 	mkdir -p $(BUILD_DIR)
 	mill -i $(PRJ).runMain Elaborate --target-dir $(BUILD_DIR)
 
-verilate: verilog
-	$(VERILATOR) --cc $(VERILATOR_SV) --Mdir $(VERILATOR_MDIR) --top-module $(VERILATOR_TOP) -O3 -Wall -Wno-fatal -CFLAGS "-std=c++17"
+# =============================== Verilog -> Verilator C++ ===============================
+verilate: $(VERILATOR_LIB)
+
+$(VERILATOR_LIB): $(VERILATOR_SV)
+	@echo "=== Verilating $(VERILATOR_TOP) ==="
+	$(VERILATOR) --cc $(VERILATOR_SV) \
+		--Mdir $(VERILATOR_MDIR) \
+		--top-module $(VERILATOR_TOP) \
+		--trace \
+		-O3 -Wall -Wno-fatal \
+		-CFLAGS "-std=c++17 -O2"
 	$(MAKE) -C $(VERILATOR_MDIR) -f V$(VERILATOR_TOP).mk
 
 help:
@@ -38,9 +57,6 @@ clean:
 	-rm -rf $(BUILD_DIR)
 
 .PHONY: test verilog verilate help reformat checkformat clean build-npc menuconfig run gdb
-
-build-npc:
-	$(MAKE) -f scripts/native.mk NPC_HOME=$(NPC_HOME)
 
 menuconfig:
 	$(MAKE) -f scripts/native.mk NPC_HOME=$(NPC_HOME) menuconfig

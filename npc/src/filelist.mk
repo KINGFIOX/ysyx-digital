@@ -22,6 +22,28 @@ CXXSRC += src/cpu/core.cc
 SHARE = $(if $(CONFIG_TARGET_SHARE),1,0)
 LIBS += $(if $(CONFIG_TARGET_NATIVE_ELF),-lreadline -ldl -pie,)
 
+# =============================== Verilator 集成 ===============================
+# Verilator 生成的目录和文件 (使用 NPC_HOME 而非 BUILD_DIR, 因为此时 BUILD_DIR 尚未定义)
+VERILATOR_TOP    ?= NpcCoreTop
+VERILATOR_MDIR   := $(NPC_HOME)/build/obj-verilator
+VERILATOR_MK     := $(VERILATOR_MDIR)/V$(VERILATOR_TOP).mk
+VERILATOR_LIB    := $(VERILATOR_MDIR)/V$(VERILATOR_TOP)__ALL.a
+
+# Verilator 头文件路径
+INC_PATH += $(VERILATOR_MDIR)
+INC_PATH += $(shell pkg-config --variable=includedir verilator 2>/dev/null || echo /usr/share/verilator/include)
+
+# Verilator 头文件有一些 sign-compare 警告, 禁用之
+CXXFLAGS += -Wno-sign-compare
+
+# 链接 Verilator 生成的静态库 (模型 + 运行时)
+# libverilated.a 已经包含 verilated_vcd_c.o
+ARCHIVES += $(VERILATOR_LIB)
+ARCHIVES += $(VERILATOR_MDIR)/libverilated.a
+
+# Verilator 需要 pthread
+LIBS += -lpthread
+
 ifdef mainargs
 ASFLAGS += -DBIN_PATH=\"$(mainargs)\"
 endif
