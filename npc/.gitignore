@@ -14,12 +14,16 @@
 !Kconfig
 include/config
 include/generated
+
 # flex/bison
 !/src/monitor/sdb/expr.l
 !/src/monitor/sdb/expr.y
 src/monitor/sdb/expr.lex.c
 src/monitor/sdb/expr.tab.c
 src/monitor/sdb/expr.tab.h
+
+# verilator
+obj_dir
 
 # mill
 !*.mill

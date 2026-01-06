@@ -13,15 +13,23 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
-CXXSRC += src/npc-main.cc
+INC_PATH += $(NPC_HOME)/src/testbench/include
 
-DIRS-y += src/cpu src/monitor src/utils
-DIRS-$(CONFIG_MODE_SYSTEM) += src/memory
+# verilator 生成的头文件通常位于 $(VERILATOR_OBJ_DIR)
+INC_PATH += $(VERILATOR_OBJ_DIR)
 
-SHARE = $(if $(CONFIG_TARGET_SHARE),1,0)
-LIBS += $(if $(CONFIG_TARGET_NATIVE_ELF),-lreadline -ldl -pie,)
+# testbench 相关 C++ 源文件(不包含 sim_main.cc, 入口改为 npc-main.cc)
+CXXSRC += src/testbench/common.cc
+CXXSRC += src/testbench/cpu_tool.cc
+CXXSRC += src/testbench/devices.cc
+CXXSRC += src/testbench/diff_manage.cc
+CXXSRC += src/testbench/difftest.cc
+CXXSRC += src/testbench/emu.cc
+CXXSRC += src/testbench/interface.cc
+CXXSRC += src/testbench/nemuproxy.cc
+CXXSRC += src/testbench/ram.cc
+CXXSRC += src/testbench/testbench.cc
+CXXSRC += src/testbench/uart.cc
 
-ifdef mainargs
-ASFLAGS += -DBIN_PATH=\"$(mainargs)\"
-endif
-.PHONY: src/am-bin.S
+LIBS += -lpthread
+

@@ -3,6 +3,9 @@ NPC_HOME := $(abspath .)
 
 PRJ = playground
 
+build-npc:
+	$(MAKE) -f scripts/native.mk NPC_HOME=$(NPC_HOME)
+
 test:
 	mill -i $(PRJ).test
 
@@ -30,9 +33,6 @@ clean:
 	-rm -rf $(BUILD_DIR)
 
 .PHONY: test verilog help reformat checkformat clean build-npc menuconfig run gdb
-
-build-npc:
-	$(MAKE) -f scripts/native.mk NPC_HOME=$(NPC_HOME)
 
 menuconfig:
 	$(MAKE) -f scripts/native.mk NPC_HOME=$(NPC_HOME) menuconfig
