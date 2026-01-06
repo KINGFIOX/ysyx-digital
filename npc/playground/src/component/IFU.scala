@@ -15,34 +15,28 @@ class IFInputBundle extends Bundle with HasCoreParameter {
   val dnpc = Output(UInt(XLEN.W))
 }
 
-class IF extends Module with HasCoreParameter {
+class IFU extends Module with HasCoreParameter {
   val io = IO(new Bundle {
-    val out = Decoupled(new IFOutputBundle)         // 取指令输出, pc, snpc 输出
-    val in  = Flipped(Decoupled(new IFInputBundle)) // 接收 dnpc (用于跳转)
+    val out = new IFOutputBundle
+    val in  = Flipped(new IFInputBundle)
   })
 
-  private val pc = RegInit(UInt(XLEN.W), "h8000_0000".U)
+  private val pc_ = RegInit(UInt(XLEN.W), "h8000_0000".U)
 
   // read from irom
   private val pmemRead = Module(new DpiPmemRead)
   pmemRead.io.en   := true.B // TODO: 后面 SoC 的时候, 这里要改(暂时不动)
-  pmemRead.io.addr := pc
+  pmemRead.io.addr := pc_
   pmemRead.io.len  := 4.U
 
-  io.out.valid     := true.B // TODO:
-  io.out.bits.inst := pmemRead.io.data
-  io.out.bits.pc   := pc
-  io.out.bits.snpc := pc + 4.U
+  io.out.inst := pmemRead.io.data
+  io.out.pc   := pc_
+  io.out.snpc := pc_ + 4.U
 
-  io.in.ready := true.B // TODO:
-
-  // TODO: pc的下一时刻始终是dnpc, dnpc 由下游计算传入
-  when(io.in.fire) {
-    pc := io.in.bits.dnpc
-  }
+  pc_ := io.in.dnpc
 }
 
-object IF extends App {
+object IFU extends App {
   val firtoolOptions = Array(
     "--lowering-options=" + List(
       // make yosys happy
@@ -52,5 +46,5 @@ object IF extends App {
       "locationInfoStyle=wrapInAtSquareBracket"
     ).reduce(_ + "," + _)
   )
-  _root_.circt.stage.ChiselStage.emitSystemVerilogFile(new IF, args, firtoolOptions)
+  _root_.circt.stage.ChiselStage.emitSystemVerilogFile(new IFU, args, firtoolOptions)
 }
