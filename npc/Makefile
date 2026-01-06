@@ -1,6 +1,8 @@
 BUILD_DIR = ./build
 NPC_HOME := $(abspath .)
 
+MILL := $(NPC_HOME)/mill
+
 PRJ = playground
 
 VERILATOR ?= verilator
@@ -17,14 +19,16 @@ build-npc: verilate
 
 # =============================== Chisel -> Verilog ===============================
 test:
-	mill -i $(PRJ).test
+	$(MILL) -i $(PRJ).test
 
 verilog: $(VERILATOR_SV)
 
+# 这个 sed 命令会删除 NpcCoreTop.sv 中从 // ----- 8< ----- FILE "firrtl_black_box_resource_files.f" 开始到文件末尾的所有内容
 $(VERILATOR_SV):
 	$(call git_commit, "generate verilog")
 	mkdir -p $(BUILD_DIR)
-	mill -i $(PRJ).runMain Elaborate --target-dir $(BUILD_DIR)
+	$(MILL) -i $(PRJ).runMain Elaborate --target-dir $(BUILD_DIR)
+	@sed -i '/^\/\/ ----- 8< ----- FILE "firrtl_black_box_resource_files.f"/,$$d' $(VERILATOR_SV)
 
 # =============================== Verilog -> Verilator C++ ===============================
 
@@ -45,19 +49,19 @@ $(VERILATOR_LIB): $(VERILATOR_SV)
 # =============================== commands ===============================
 
 help:
-	mill -i $(PRJ).runMain Elaborate --help
+	$(MILL) -i $(PRJ).runMain Elaborate --help
 
 reformat:
-	mill -i __.reformat
+	$(MILL) -i __.reformat
 
 checkformat:
-	mill -i __.checkFormat
+	$(MILL) -i __.checkFormat
 
 bsp:
-	mill -i mill.bsp.BSP/install
+	./mill -i mill.bsp.BSP/install
 
 idea:
-	mill -i mill.idea.GenIdea/idea
+	$(MILL) -i mill.idea.GenIdea/idea
 
 clean:
 	-rm -rf $(BUILD_DIR)
