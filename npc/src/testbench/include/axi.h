@@ -33,13 +33,6 @@ public:
 
     void read(vluint64_t main_time,vluint64_t a) {
         top->rvalid = 1;
-        if (simu_dev && dev.in_space(0, a)) {
-            top->rdata[0] = dev.read(main_time, a);
-            top->rdata[1] = 0;
-            top->rdata[2] = 0;
-            top->rdata[3] = 0;
-            return;
-        }
         top->rdata[0] = ram->read32(a);
         top->rdata[1] = ram->read32(a + 4);
         top->rdata[2] = ram->read32(a + 8);
@@ -48,10 +41,6 @@ public:
     }
 
     void write(vluint64_t main_time,vluint64_t a,vluint64_t m,unsigned* d) {
-        if (simu_dev && dev.in_space(0, main_time)) {
-            dev.write(main_time, a, d[0]);
-            return;
-        }
         ram->write4B(a, m & 0xf, d[0]);
         ram->write4B(a, (m >> 4) & 0xf, d[1]);
         ram->write4B(a, (m >> 8) & 0xf, d[2]);

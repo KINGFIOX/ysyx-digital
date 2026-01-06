@@ -23,8 +23,6 @@ public:
     static const int status_unhandled_syscall = 0x40000;
 
     static int simu_quiet;
-    static int simu_user;
-    static int simu_dev;
     static int simu_wait;
     static int simu_bus_delay;
     static int simu_bus_delay_random_seed;
@@ -40,7 +38,6 @@ public:
 
     static int time_check;
 
-    static int dump_pc_trace;
     static int dump_rf_trace;
     static int rf_trace_no_repeat;
     static int comp_pc_trace;
