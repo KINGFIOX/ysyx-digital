@@ -130,11 +130,14 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Perform ISA dependent initialization. */
   init_isa();
-  extern bool npc_core_init(int argc, char *argv[]);
-  npc_core_init(argc, argv);
 
   /* Load the image to memory. This will overwrite the built-in image. */
+  /* 必须在 npc_core_init 之前加载，否则 NPC 会执行内置镜像 */
   long img_size = load_img(); // 先有了 init_mem, 才能有 load_img
+
+  /* Initialize NPC core after loading the image */
+  extern bool npc_core_init(int argc, char *argv[]);
+  npc_core_init(argc, argv);
 
   /* Initialize function tracer. */
   IFDEF(CONFIG_FTRACE, init_ftrace(img_file));

@@ -20,6 +20,7 @@
 
 bool gdb_connect_qemu(int);
 bool gdb_memcpy_to_qemu(uint32_t, void *, int);
+bool gdb_memcpy_from_qemu(uint32_t, void *, int);
 bool gdb_getregs(union isa_gdb_regs *);
 bool gdb_setregs(union isa_gdb_regs *);
 bool gdb_si();

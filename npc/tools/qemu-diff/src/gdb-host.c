@@ -113,6 +113,30 @@ bool gdb_si() {
   return true;
 }
 
+bool gdb_memcpy_from_qemu(uint32_t src, void *dest, int len) {
+  char *buf = malloc(128);
+  assert(buf != NULL);
+  sprintf(buf, "m0x%x,%x", src, len);
+  
+  gdb_send(conn, (const uint8_t *)buf, strlen(buf));
+  free(buf);
+  
+  size_t size;
+  uint8_t *reply = gdb_recv(conn, &size);
+  
+  // 解析十六进制响应
+  for (int i = 0; i < len && i * 2 < (int)size; i++) {
+    uint8_t hi = reply[i * 2];
+    uint8_t lo = reply[i * 2 + 1];
+    hi = (hi >= 'a') ? (hi - 'a' + 10) : (hi >= 'A') ? (hi - 'A' + 10) : (hi - '0');
+    lo = (lo >= 'a') ? (lo - 'a' + 10) : (lo >= 'A') ? (lo - 'A' + 10) : (lo - '0');
+    ((uint8_t *)dest)[i] = (hi << 4) | lo;
+  }
+  
+  free(reply);
+  return true;
+}
+
 void gdb_exit() {
   gdb_end(conn);
 }

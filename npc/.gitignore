@@ -34,3 +34,6 @@ out/
 .idea_modules/
 test_run_dir/
 !/mill
+
+# markdown
+!BUG_REPORT_DIFFTEST.md
