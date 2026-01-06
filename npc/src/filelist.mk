@@ -29,9 +29,9 @@ VERILATOR_MDIR   := $(NPC_HOME)/build/obj-verilator
 VERILATOR_MK     := $(VERILATOR_MDIR)/V$(VERILATOR_TOP).mk
 VERILATOR_LIB    := $(VERILATOR_MDIR)/V$(VERILATOR_TOP)__ALL.a
 
-# Verilator 头文件路径
+# Verilator 头文件路径 (使用 verilator --getenv 确保版本一致)
 INC_PATH += $(VERILATOR_MDIR)
-INC_PATH += $(shell pkg-config --variable=includedir verilator 2>/dev/null || echo /usr/share/verilator/include)
+INC_PATH += $(shell verilator --getenv VERILATOR_ROOT)/include
 
 # Verilator 头文件有一些 sign-compare 警告, 禁用之
 CXXFLAGS += -Wno-sign-compare

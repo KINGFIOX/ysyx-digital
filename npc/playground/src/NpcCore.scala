@@ -7,11 +7,11 @@ import chisel3.util._
  * 用来给 Verilator 暴露提交信息, 便于在 C++ 侧采样做差分测试
  */
 class CommitBundle extends Bundle {
-  val valid  = Output(Bool())        // 指令提交有效
-  val pc     = Output(UInt(32.W))    // 当前指令 PC
-  val nextPc = Output(UInt(32.W))    // 下一条指令 PC (分支/跳转后的实际目标)
-  val inst   = Output(UInt(32.W))    // 当前指令编码
-  val gpr    = Output(Vec(32, UInt(32.W)))  // 通用寄存器组快照
+  val valid  = Output(Bool()) // commit valid
+  val pc     = Output(UInt(32.W)) // s->pc
+  val nextPc = Output(UInt(32.W)) // s->dnpc
+  val inst   = Output(UInt(32.W))
+  val gpr    = Output(Vec(32, UInt(32.W)))
 }
 
 /**

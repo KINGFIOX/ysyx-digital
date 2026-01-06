@@ -2,6 +2,7 @@ BUILD_DIR = ./build
 NPC_HOME := $(abspath .)
 
 PRJ = playground
+
 VERILATOR ?= verilator
 VERILATOR_TOP ?= NpcCoreTop
 VERILATOR_SV  := $(BUILD_DIR)/$(VERILATOR_TOP).sv
@@ -26,6 +27,7 @@ $(VERILATOR_SV):
 	mill -i $(PRJ).runMain Elaborate --target-dir $(BUILD_DIR)
 
 # =============================== Verilog -> Verilator C++ ===============================
+
 verilate: $(VERILATOR_LIB)
 
 $(VERILATOR_LIB): $(VERILATOR_SV)
@@ -37,6 +39,9 @@ $(VERILATOR_LIB): $(VERILATOR_SV)
 		-O3 -Wall -Wno-fatal \
 		-CFLAGS "-std=c++17 -O2"
 	$(MAKE) -C $(VERILATOR_MDIR) -f V$(VERILATOR_TOP).mk
+
+
+# =============================== commands ===============================
 
 help:
 	mill -i $(PRJ).runMain Elaborate --help

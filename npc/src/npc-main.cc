@@ -21,12 +21,16 @@ void init_monitor(int, char *[]);
 void am_init_monitor();
 void engine_start();
 int is_exit_status_bad();
+bool npc_core_init(int argc, char *argv[]);
 }
 
 int main(int argc, char *argv[]) {
 
   /* Initialize the monitor. */
   init_monitor(argc, argv);
+
+  /* Initialize the CPU core. */
+  npc_core_init(argc, argv);
 
   /* Start engine. */
   engine_start();

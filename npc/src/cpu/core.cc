@@ -21,9 +21,14 @@ extern "C" {
 #include "VNpcCoreTop.h"
 #include <verilated.h>
 
+#ifdef CONFIG_VERILATOR_TRACE
+#include <verilated_vcd_c.h>
+#endif
+
 // Verilator 模型实例
 static VNpcCoreTop *top = nullptr;
 static VerilatedContext *ctx = nullptr;
+IFDEF(CONFIG_VERILATOR_TRACE, static VerilatedVcdC* tfp = nullptr;)
 
 // 最大时钟周期数 (防止死循环)
 static constexpr uint64_t MAX_CYCLES_PER_STEP = 10000;
@@ -52,17 +57,20 @@ static void reset(int cycles = 5) {
   top->reset = 0;
 }
 
-extern "C" bool npc_core_init(void) {
+extern "C" bool npc_core_init(int argc, char *argv[]) {
+  // init VerilatedContext
   ctx = new VerilatedContext;
+  ctx->commandArgs(argc, argv);
 
+  // init top module
+#if defined(CONFIG_VERILATOR_TRACE)
+  Verilated::traceEverOn(true);
+#endif
   top = new VNpcCoreTop(ctx);
 
-  // TODO: VCD trace 暂时禁用，因为 Verilator 库版本可能不兼容
-  // 如需启用，请确保 Verilator 版本一致后取消注释
-#if 0 && defined(CONFIG_VERILATOR_TRACE)
-  ctx->traceEverOn(true);
+#if defined(CONFIG_VERILATOR_TRACE)
   tfp = new VerilatedVcdC;
-  top->trace(tfp, 99);
+  top->trace(tfp, 99);  // 99 levels: 追踪所有层级的信号
   tfp->open("build/npc_core.vcd");
   Log("VCD trace enabled: build/npc_core.vcd");
 #endif

@@ -176,8 +176,6 @@ static struct {
     [CMD_D] = {"d", "delete watchpoint", cmd_d},     // d N
 };
 
-#define NR_CMD ARRLEN(cmd_table)
-
 static int cmd_help(char *args) {
   /* extract the first argument */
   char *arg = strtok(NULL, " ");

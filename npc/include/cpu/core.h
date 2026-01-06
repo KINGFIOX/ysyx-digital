@@ -18,16 +18,6 @@ extern "C" {
 #endif
 
 /**
- * 初始化 CPU 核心仿真后端
- *
- * - 当 CONFIG_VERILATOR 启用时: 创建 VNpcCoreTop 模型并执行复位
- * - 当 CONFIG_VERILATOR 未启用时: 初始化占位后端
- *
- * @return true 初始化成功, false 初始化失败
- */
-bool npc_core_init(void);
-
-/**
  * 清理 CPU 核心仿真后端
  *
  * 释放 Verilator 模型及相关资源

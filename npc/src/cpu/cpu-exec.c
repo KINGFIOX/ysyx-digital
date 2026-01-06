@@ -138,15 +138,6 @@ static bool exec_once(Decode *s) {
 
 static void execute(uint64_t n) {
   Decode s;
-  static bool core_ready = false;
-
-  if (!core_ready) {
-    core_ready = npc_core_init();
-    if (!core_ready) {
-      set_npc_state(NPC_ABORT, cpu.pc, -1);
-      return;
-    }
-  }
 
   for (; n > 0; n--) {
     if (!exec_once(&s)) {
