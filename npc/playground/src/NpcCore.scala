@@ -60,17 +60,17 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   alu.io.in.op1   := MuxCase(
     0.U,
     Seq(
-      (cu.io.out.aluOp1 === ALUOp1Sel.OP1_RS1)  -> rs1Data,
-      (cu.io.out.aluOp1 === ALUOp1Sel.OP1_PC)   -> pc,
-      (cu.io.out.aluOp1 === ALUOp1Sel.OP1_ZERO) -> 0.U
+      (cu.io.out.aluSel1 === ALUOp1Sel.OP1_RS1)  -> rs1Data,
+      (cu.io.out.aluSel1 === ALUOp1Sel.OP1_PC)   -> pc,
+      (cu.io.out.aluSel1 === ALUOp1Sel.OP1_ZERO) -> 0.U
     )
   )
   alu.io.in.op2   := MuxCase(
     0.U,
     Seq(
-      (cu.io.out.aluOp2 === ALUOp2Sel.OP2_RS2) -> rs2Data,
-      (cu.io.out.aluOp2 === ALUOp2Sel.OP2_IMM) -> imm,
-      (cu.io.out.aluOp2 === ALUOp2Sel.OP2_4)   -> 4.U
+      (cu.io.out.aluSel2 === ALUOp2Sel.OP2_RS2) -> rs2Data,
+      (cu.io.out.aluSel2 === ALUOp2Sel.OP2_IMM) -> imm,
+      (cu.io.out.aluSel2 === ALUOp2Sel.OP2_4)   -> 4.U
     )
   )
   alu.io.in.aluOp := cu.io.out.aluOp
@@ -83,7 +83,7 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   val brTaken = bru.io.out.br_flag
 
   /* ========== 内存单元 ========== */
-  memU.io.en       := io.step && cu.io.out.memEn
+  memU.io.in.en       := io.step && cu.io.out.memEn
   memU.io.in.op    := cu.io.out.memOp
   memU.io.in.addr  := aluResult // ALU 计算出的地址
   memU.io.in.wdata := rs2Data   // Store 的数据
@@ -104,15 +104,13 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   rfu.io.in.wen   := io.step && cu.io.out.rfWen // 只在 step 有效时写入
 
   /* ========== 下一条 PC 计算 ========== */
+  // ALU 已计算: JAL/Branch 为 PC+imm, JALR 为 rs1+imm
   val dnpc = MuxCase(
     snpc, // 默认: PC + 4
     Seq(
-      // JAL: PC + imm
-      (cu.io.out.npcOp === NPCOpType.NPC_JAL)           -> (pc + imm),
-      // JALR: (rs1 + imm) & ~1
-      (cu.io.out.npcOp === NPCOpType.NPC_JALR)          -> ((rs1Data + imm) & (~1.U(XLEN.W))),
-      // Branch: 如果条件满足则 PC + imm, 否则 PC + 4
-      (cu.io.out.npcOp === NPCOpType.NPC_BR && brTaken) -> (pc + imm)
+      (cu.io.out.npcOp === NPCOpType.NPC_JAL)           -> aluResult,
+      (cu.io.out.npcOp === NPCOpType.NPC_JALR)          -> (aluResult & (~1.U(XLEN.W))),
+      (cu.io.out.npcOp === NPCOpType.NPC_BR && brTaken) -> aluResult
     )
   )
 

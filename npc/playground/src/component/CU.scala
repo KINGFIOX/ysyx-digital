@@ -34,8 +34,8 @@ object NPCOpType extends ChiselEnum {
 class CUOutputBundle extends Bundle with HasRegFileParameter {
   // ALU 控制
   val aluOp   = Output(ALUOpType())
-  val aluOp1  = Output(ALUOp1Sel())
-  val aluOp2  = Output(ALUOp2Sel())
+  val aluSel1  = Output(ALUOp1Sel())
+  val aluSel2  = Output(ALUOp2Sel())
   // 立即数类型
   val immType = Output(ImmType())
   // 内存操作
@@ -67,8 +67,8 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
 
   /* ---------- 默认值 ---------- */
   io.out.aluOp   := DontCare
-  io.out.aluOp1  := DontCare
-  io.out.aluOp2  := DontCare
+  io.out.aluSel1  := DontCare
+  io.out.aluSel2  := DontCare
   io.out.immType := DontCare
   io.out.memOp   := DontCare
   io.out.wbSel   := DontCare
@@ -84,8 +84,8 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   /* ---------- R-type: add rd, rs1, rs2 ---------- */
   private def rInst(op: ALUOpType.Type): Unit /*无返回值*/ = {
     io.out.aluOp  := op
-    io.out.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.out.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.out.aluSel1 := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2 := ALUOp2Sel.OP2_RS2
     io.out.wbSel  := WBSel.WB_ALU
     io.out.rfWen  := true.B
     io.out.invalidInst := false.B
@@ -104,8 +104,8 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   /* ---------- I-type: addi rd, rs1, imm ---------- */
   private def iInst(op: ALUOpType.Type): Unit /*无返回值*/ = {
     io.out.aluOp   := op
-    io.out.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.aluSel1  := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
     io.out.immType := ImmType.IMM_I
     io.out.wbSel   := WBSel.WB_ALU
     io.out.rfWen   := true.B
@@ -124,8 +124,8 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   /* ---------- Load: lw rd, offset(rs1) ---------- */
   private def lInst(op: MemUOpType.Type) : Unit /*无返回值*/ = {
     io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.aluSel1  := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
     io.out.immType := ImmType.IMM_I
     io.out.memOp   := op
     io.out.memEn   := true.B
@@ -142,8 +142,8 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   /* ---------- Store: sw rs2, offset(rs1) ---------- */
   private def sInst(op: MemUOpType.Type) : Unit /*无返回值*/ = {
     io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.aluSel1  := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
     io.out.immType := ImmType.IMM_S
     io.out.memOp   := op
     io.out.memEn   := true.B
@@ -155,6 +155,9 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
 
   /* ---------- Branch: beq rs1, rs2, offset ---------- */
   private def bInst(op: BRUOpType.Type) : Unit /*无返回值*/ = {
+    io.out.aluOp   := ALUOpType.alu_ADD
+    io.out.aluSel1  := ALUOp1Sel.OP1_PC
+    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
     io.out.bruOp   := op
     io.out.immType := ImmType.IMM_B
     io.out.npcOp   := NPCOpType.NPC_BR
@@ -169,6 +172,9 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
 
   /* ---------- JAL: jal rd, offset ---------- */
   when(inst === JAL) {
+    io.out.aluOp   := ALUOpType.alu_ADD
+    io.out.aluSel1  := ALUOp1Sel.OP1_PC
+    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
     io.out.immType := ImmType.IMM_J
     io.out.npcOp   := NPCOpType.NPC_JAL
     io.out.wbSel   := WBSel.WB_PC4
@@ -178,6 +184,9 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
 
   /* ---------- JALR: jalr rd, rs1, offset ---------- */
   when(inst === JALR) {
+    io.out.aluOp   := ALUOpType.alu_ADD // ALU 计算 rs1 + imm
+    io.out.aluSel1  := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
     io.out.immType := ImmType.IMM_I
     io.out.npcOp   := NPCOpType.NPC_JALR
     io.out.wbSel   := WBSel.WB_PC4
@@ -188,8 +197,8 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   /* ---------- LUI: lui rd, imm ---------- */
   when(inst === LUI) {
     io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluOp1  := ALUOp1Sel.OP1_ZERO
-    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.aluSel1  := ALUOp1Sel.OP1_ZERO
+    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
     io.out.immType := ImmType.IMM_U
     io.out.wbSel   := WBSel.WB_ALU
     io.out.rfWen   := true.B
@@ -199,8 +208,8 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   /* ---------- AUIPC: auipc rd, imm ---------- */
   when(inst === AUIPC) {
     io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluOp1  := ALUOp1Sel.OP1_PC
-    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.aluSel1  := ALUOp1Sel.OP1_PC
+    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
     io.out.immType := ImmType.IMM_U
     io.out.wbSel   := WBSel.WB_ALU
     io.out.rfWen   := true.B
