@@ -13,6 +13,7 @@ class MEMUInputBundle extends Bundle with HasCoreParameter {
   val op    = Output(MemUOpType()) // 操作类型
   val wdata = Output(UInt(XLEN.W)) // 写数据 (Store 用)
   val addr  = Output(UInt(XLEN.W)) // 地址
+  val en    = Output(Bool())
 }
 
 class MEMUOutputBundle extends Bundle with HasCoreParameter {
@@ -36,7 +37,6 @@ object ZeroExt {
 
 class MemU extends Module with HasCoreParameter {
   val io = IO(new Bundle {
-    val en  = Input(Bool())                // 使能信号
     val in  = Flipped(new MEMUInputBundle) // 输入
     val out = new MEMUOutputBundle         // 输出
   })
@@ -71,16 +71,16 @@ class MemU extends Module with HasCoreParameter {
   )
 
   // 当不使能时，传一个安全的默认地址，避免 DPI 侧越界检查失败
-  private val safeAddr = Mux(io.en, io.in.addr, "h80000000".U(XLEN.W))
+  private val safeAddr = Mux(io.in.en, io.in.addr, "h80000000".U(XLEN.W))
 
   /* ---------- DPI 读取控制 ---------- */
-  pmemRead.io.en    := io.en && isLoad
+  pmemRead.io.en    := io.in.en && isLoad
   pmemRead.io.addr  := safeAddr
   pmemRead.io.len   := readLen
 
   /* ---------- DPI 写入控制 ---------- */
   pmemWrite.io.clock := clock
-  pmemWrite.io.en    := io.en && isStore
+  pmemWrite.io.en    := io.in.en && isStore
   pmemWrite.io.addr  := safeAddr
   pmemWrite.io.len   := writeLen
   pmemWrite.io.data  := io.in.wdata // DPI 侧会根据 len 和 addr 处理字节选择
