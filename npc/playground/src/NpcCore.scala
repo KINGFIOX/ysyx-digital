@@ -31,19 +31,19 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   val memU = Module(new MemU)
 
   /* ========== 指令字段提取 ========== */
-  val inst   = ifu.io.out.inst
-  val pc     = ifu.io.out.pc
-  val snpc   = ifu.io.out.snpc
-  val rd     = inst(11, 7)
-  val rs1    = inst(19, 15)
-  val rs2    = inst(24, 20)
+  val inst = ifu.io.out.inst
+  val pc   = ifu.io.out.pc
+  val snpc = ifu.io.out.snpc
+  val rd   = inst(11, 7)
+  val rs1  = inst(19, 15)
+  val rs2  = inst(24, 20)
 
   /* ========== 控制单元 ========== */
-  cu.io.inst := inst
+  cu.io.in.inst := inst
 
   /* ========== 立即数扩展 ========== */
   extU.io.in.inst    := inst
-  extU.io.in.immType := cu.io.ctrl.immType
+  extU.io.in.immType := cu.io.out.immType
   val imm = extU.io.out.imm
 
   /* ========== 寄存器堆读取 ========== */
@@ -54,34 +54,34 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   val rs2Data = rfu.io.out.rs2_v
 
   /* ========== ALU 操作数选择 ========== */
-  alu.io.in.op1 := MuxCase(
+  alu.io.in.op1   := MuxCase(
     0.U,
     Seq(
-      (cu.io.ctrl.aluOp1 === ALUOp1Sel.OP1_RS1)  -> rs1Data,
-      (cu.io.ctrl.aluOp1 === ALUOp1Sel.OP1_PC)   -> pc,
-      (cu.io.ctrl.aluOp1 === ALUOp1Sel.OP1_ZERO) -> 0.U
+      (cu.io.out.aluOp1 === ALUOp1Sel.OP1_RS1)  -> rs1Data,
+      (cu.io.out.aluOp1 === ALUOp1Sel.OP1_PC)   -> pc,
+      (cu.io.out.aluOp1 === ALUOp1Sel.OP1_ZERO) -> 0.U
     )
   )
-  alu.io.in.op2 := MuxCase(
+  alu.io.in.op2   := MuxCase(
     0.U,
     Seq(
-      (cu.io.ctrl.aluOp2 === ALUOp2Sel.OP2_RS2) -> rs2Data,
-      (cu.io.ctrl.aluOp2 === ALUOp2Sel.OP2_IMM) -> imm,
-      (cu.io.ctrl.aluOp2 === ALUOp2Sel.OP2_4)   -> 4.U
+      (cu.io.out.aluOp2 === ALUOp2Sel.OP2_RS2) -> rs2Data,
+      (cu.io.out.aluOp2 === ALUOp2Sel.OP2_IMM) -> imm,
+      (cu.io.out.aluOp2 === ALUOp2Sel.OP2_4)   -> 4.U
     )
   )
-  alu.io.in.aluOp := cu.io.ctrl.aluOp
+  alu.io.in.aluOp := cu.io.out.aluOp
   val aluResult = alu.io.out.result
 
   /* ========== 分支单元 ========== */
   bru.io.in.rs1_v  := rs1Data
   bru.io.in.rs2_v  := rs2Data
-  bru.io.in.bru_op := cu.io.ctrl.bruOp
-  val brTaken = bru.io.br_flag
+  bru.io.in.bru_op := cu.io.out.bruOp
+  val brTaken = bru.io.out.br_flag
 
   /* ========== 内存单元 ========== */
-  memU.io.en       := io.step && cu.io.ctrl.memEn
-  memU.io.in.op    := cu.io.ctrl.memOp
+  memU.io.en       := io.step && cu.io.out.memEn
+  memU.io.in.op    := cu.io.out.memOp
   memU.io.in.addr  := aluResult // ALU 计算出的地址
   memU.io.in.wdata := rs2Data   // Store 的数据
   val memData = memU.io.out.rdata
@@ -90,26 +90,26 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   val wbData = MuxCase(
     0.U,
     Seq(
-      (cu.io.ctrl.wbSel === WBSel.WB_ALU) -> aluResult,
-      (cu.io.ctrl.wbSel === WBSel.WB_MEM) -> memData,
-      (cu.io.ctrl.wbSel === WBSel.WB_PC4) -> snpc
+      (cu.io.out.wbSel === WBSel.WB_ALU) -> aluResult,
+      (cu.io.out.wbSel === WBSel.WB_MEM) -> memData,
+      (cu.io.out.wbSel === WBSel.WB_PC4) -> snpc
     )
   )
 
   /* ========== 寄存器堆写入 ========== */
   rfu.io.in.wdata := wbData
-  rfu.io.in.wen   := io.step && cu.io.ctrl.rfWen // 只在 step 有效时写入
+  rfu.io.in.wen   := io.step && cu.io.out.rfWen // 只在 step 有效时写入
 
   /* ========== 下一条 PC 计算 ========== */
   val dnpc = MuxCase(
     snpc, // 默认: PC + 4
     Seq(
       // JAL: PC + imm
-      (cu.io.ctrl.npcOp === NPCOpType.NPC_JAL) -> (pc + imm),
+      (cu.io.out.npcOp === NPCOpType.NPC_JAL)           -> (pc + imm),
       // JALR: (rs1 + imm) & ~1
-      (cu.io.ctrl.npcOp === NPCOpType.NPC_JALR) -> ((rs1Data + imm) & (~1.U(XLEN.W))),
+      (cu.io.out.npcOp === NPCOpType.NPC_JALR)          -> ((rs1Data + imm) & (~1.U(XLEN.W))),
       // Branch: 如果条件满足则 PC + imm, 否则 PC + 4
-      (cu.io.ctrl.npcOp === NPCOpType.NPC_BR && brTaken) -> (pc + imm)
+      (cu.io.out.npcOp === NPCOpType.NPC_BR && brTaken) -> (pc + imm)
     )
   )
 

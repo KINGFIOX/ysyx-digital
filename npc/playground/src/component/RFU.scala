@@ -37,9 +37,7 @@ class RFU extends Module with HasCoreParameter with HasRegFileParameter {
   io.out.rs2_v := Mux(io.in.rs2_i === 0.U, 0.U, rf(io.in.rs2_i))
 
   // 写入: x0 不可写
-  when(io.in.wen && (io.in.rd_i =/= 0.U)) {
-    rf(io.in.rd_i) := io.in.wdata
-  }
+  when(io.in.wen && (io.in.rd_i =/= 0.U)) { rf(io.in.rd_i) := io.in.wdata }
 
   // 导出所有寄存器用于 difftest
   io.out.gpr := rf

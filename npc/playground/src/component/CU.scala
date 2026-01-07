@@ -1,6 +1,5 @@
 /** @brief
-  *   CU - 控制单元 (Control Unit)
-  *   根据指令生成各个模块的控制信号
+  *   CU - 控制单元 (Control Unit) 根据指令生成各个模块的控制信号
   */
 
 package component
@@ -23,7 +22,7 @@ object ALUOp2Sel extends ChiselEnum {
 
 /** 写回数据选择 */
 object WBSel extends ChiselEnum {
-  val WB_X, WB_ALU, WB_MEM, WB_PC4 = Value
+  val WB_ALU, WB_MEM, WB_PC4 = Value
 }
 
 /** NPC 选择 (下一条 PC) */
@@ -50,317 +49,148 @@ class CUOutputBundle extends Bundle with HasRegFileParameter {
   val npcOp   = Output(NPCOpType())
 }
 
+class CUInputBundle extends Bundle with HasCoreParameter {
+  val inst = Output(UInt(XLEN.W))
+}
+
 class CU extends Module with HasCoreParameter with HasRegFileParameter {
   val io = IO(new Bundle {
-    val inst = Input(UInt(XLEN.W))
-    val ctrl = new CUOutputBundle
+    val in  = Flipped(new CUInputBundle)
+    val out = new CUOutputBundle
   })
 
-  private val inst = io.inst
+  private val inst = io.in.inst
 
   /* ---------- 默认值 ---------- */
-  io.ctrl.aluOp   := ALUOpType.alu_ADD
-  io.ctrl.aluOp1  := ALUOp1Sel.OP1_ZERO
-  io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-  io.ctrl.immType := ImmType.IMM_I
-  io.ctrl.memOp   := MemUOpType.mem_LB // 默认值，memEn=false 时不生效
-  io.ctrl.memEn   := false.B
-  io.ctrl.wbSel   := WBSel.WB_X
-  io.ctrl.rfWen   := false.B
-  io.ctrl.bruOp   := BRUOpType.bru_X
-  io.ctrl.npcOp   := NPCOpType.NPC_4
+  io.out.aluOp   := DontCare
+  io.out.aluOp1  := DontCare
+  io.out.aluOp2  := DontCare
+  io.out.immType := DontCare
+  io.out.memOp   := DontCare
+  io.out.wbSel   := DontCare
+  io.out.bruOp   := DontCare
+
+  io.out.memEn := false.B         // 禁止写入, 状态不变
+  io.out.rfWen := false.B
+  io.out.npcOp := NPCOpType.NPC_4 //
 
   /* ---------- R-type: add rd, rs1, rs2 ---------- */
-  when(inst === ADD) {
-    io.ctrl.aluOp  := ALUOpType.alu_ADD
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
+  private def rInst(op: ALUOpType.Type): Unit /*无返回值*/ = {
+    io.out.aluOp  := op
+    io.out.aluOp1 := ALUOp1Sel.OP1_RS1
+    io.out.aluOp2 := ALUOp2Sel.OP2_RS2
+    io.out.wbSel  := WBSel.WB_ALU
+    io.out.rfWen  := true.B
   }
-  when(inst === SUB) {
-    io.ctrl.aluOp  := ALUOpType.alu_SUB
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
-  }
-  when(inst === AND) {
-    io.ctrl.aluOp  := ALUOpType.alu_AND
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
-  }
-  when(inst === OR) {
-    io.ctrl.aluOp  := ALUOpType.alu_OR
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
-  }
-  when(inst === XOR) {
-    io.ctrl.aluOp  := ALUOpType.alu_XOR
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
-  }
-  when(inst === SLL) {
-    io.ctrl.aluOp  := ALUOpType.alu_SLL
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
-  }
-  when(inst === SRL) {
-    io.ctrl.aluOp  := ALUOpType.alu_SRL
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
-  }
-  when(inst === SRA) {
-    io.ctrl.aluOp  := ALUOpType.alu_SRA
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
-  }
-  when(inst === SLT) {
-    io.ctrl.aluOp  := ALUOpType.alu_SLT
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
-  }
-  when(inst === SLTU) {
-    io.ctrl.aluOp  := ALUOpType.alu_SLTU
-    io.ctrl.aluOp1 := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2 := ALUOp2Sel.OP2_RS2
-    io.ctrl.wbSel  := WBSel.WB_ALU
-    io.ctrl.rfWen  := true.B
-  }
+  when(inst === ADD) { rInst(ALUOpType.alu_ADD) }
+  when(inst === SUB) { rInst(ALUOpType.alu_SUB) }
+  when(inst === AND) { rInst(ALUOpType.alu_AND) }
+  when(inst === OR) { rInst(ALUOpType.alu_OR) }
+  when(inst === XOR) { rInst(ALUOpType.alu_XOR) }
+  when(inst === SLL) { rInst(ALUOpType.alu_SLL) }
+  when(inst === SRL) { rInst(ALUOpType.alu_SRL) }
+  when(inst === SRA) { rInst(ALUOpType.alu_SRA) }
+  when(inst === SLT) { rInst(ALUOpType.alu_SLT) }
+  when(inst === SLTU) { rInst(ALUOpType.alu_SLTU) }
 
-  /* ---------- I-type 算术: addi rd, rs1, imm ---------- */
-  when(inst === ADDI) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
+  /* ---------- I-type: addi rd, rs1, imm ---------- */
+  private def iInst(op: ALUOpType.Type): Unit /*无返回值*/ = {
+    io.out.aluOp   := op
+    io.out.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.immType := ImmType.IMM_I
+    io.out.wbSel   := WBSel.WB_ALU
+    io.out.rfWen   := true.B
   }
-  when(inst === ANDI) {
-    io.ctrl.aluOp   := ALUOpType.alu_AND
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === ORI) {
-    io.ctrl.aluOp   := ALUOpType.alu_OR
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === XORI) {
-    io.ctrl.aluOp   := ALUOpType.alu_XOR
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === SLLI) {
-    io.ctrl.aluOp   := ALUOpType.alu_SLL
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === SRLI) {
-    io.ctrl.aluOp   := ALUOpType.alu_SRL
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === SRAI) {
-    io.ctrl.aluOp   := ALUOpType.alu_SRA
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === SLTI) {
-    io.ctrl.aluOp   := ALUOpType.alu_SLT
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === SLTIU) {
-    io.ctrl.aluOp   := ALUOpType.alu_SLTU
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
-  }
+  when(inst === ADDI) { iInst(ALUOpType.alu_ADD) }
+  when(inst === ANDI) { iInst(ALUOpType.alu_AND) }
+  when(inst === ORI) { iInst(ALUOpType.alu_OR) }
+  when(inst === XORI) { iInst(ALUOpType.alu_XOR) }
+  when(inst === SLLI) { iInst(ALUOpType.alu_SLL) }
+  when(inst === SRLI) { iInst(ALUOpType.alu_SRL) }
+  when(inst === SRAI) { iInst(ALUOpType.alu_SRA) }
+  when(inst === SLTI) { iInst(ALUOpType.alu_SLT) }
+  when(inst === SLTIU) { iInst(ALUOpType.alu_SLTU) }
 
   /* ---------- Load: lw rd, offset(rs1) ---------- */
-  when(inst === LB) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.memOp   := MemUOpType.mem_LB
-    io.ctrl.memEn   := true.B
-    io.ctrl.wbSel   := WBSel.WB_MEM
-    io.ctrl.rfWen   := true.B
+  private def lInst(op: MemUOpType.Type) : Unit /*无返回值*/ = {
+    io.out.aluOp   := ALUOpType.alu_ADD
+    io.out.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.immType := ImmType.IMM_I
+    io.out.memOp   := op
+    io.out.memEn   := true.B
+    io.out.wbSel   := WBSel.WB_MEM
+    io.out.rfWen   := true.B
   }
-  when(inst === LH) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.memOp   := MemUOpType.mem_LH
-    io.ctrl.memEn   := true.B
-    io.ctrl.wbSel   := WBSel.WB_MEM
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === LW) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.memOp   := MemUOpType.mem_LW
-    io.ctrl.memEn   := true.B
-    io.ctrl.wbSel   := WBSel.WB_MEM
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === LBU) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.memOp   := MemUOpType.mem_LBU
-    io.ctrl.memEn   := true.B
-    io.ctrl.wbSel   := WBSel.WB_MEM
-    io.ctrl.rfWen   := true.B
-  }
-  when(inst === LHU) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.memOp   := MemUOpType.mem_LHU
-    io.ctrl.memEn   := true.B
-    io.ctrl.wbSel   := WBSel.WB_MEM
-    io.ctrl.rfWen   := true.B
-  }
+  when(inst === LB) { lInst(MemUOpType.mem_LB) }
+  when(inst === LH) { lInst(MemUOpType.mem_LH) }
+  when(inst === LW) { lInst(MemUOpType.mem_LW) }
+  when(inst === LBU) { lInst(MemUOpType.mem_LBU) }
+  when(inst === LHU) { lInst(MemUOpType.mem_LHU) }
 
   /* ---------- Store: sw rs2, offset(rs1) ---------- */
-  when(inst === SB) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_S
-    io.ctrl.memOp   := MemUOpType.mem_SB
-    io.ctrl.memEn   := true.B
+  private def sInst(op: MemUOpType.Type) : Unit /*无返回值*/ = {
+    io.out.aluOp   := ALUOpType.alu_ADD
+    io.out.aluOp1  := ALUOp1Sel.OP1_RS1
+    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.immType := ImmType.IMM_S
+    io.out.memOp   := op
+    io.out.memEn   := true.B
   }
-  when(inst === SH) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_S
-    io.ctrl.memOp   := MemUOpType.mem_SH
-    io.ctrl.memEn   := true.B
-  }
-  when(inst === SW) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_RS1
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_S
-    io.ctrl.memOp   := MemUOpType.mem_SW
-    io.ctrl.memEn   := true.B
-  }
+  when(inst === SB) { sInst(MemUOpType.mem_SB) }
+  when(inst === SH) { sInst(MemUOpType.mem_SH) }
+  when(inst === SW) { sInst(MemUOpType.mem_SW) }
 
   /* ---------- Branch: beq rs1, rs2, offset ---------- */
-  when(inst === BEQ) {
-    io.ctrl.bruOp   := BRUOpType.bru_BEQ
-    io.ctrl.immType := ImmType.IMM_B
-    io.ctrl.npcOp   := NPCOpType.NPC_BR
+  private def bInst(op: BRUOpType.Type) : Unit /*无返回值*/ = {
+    io.out.bruOp   := op
+    io.out.immType := ImmType.IMM_B
+    io.out.npcOp   := NPCOpType.NPC_BR
   }
-  when(inst === BNE) {
-    io.ctrl.bruOp   := BRUOpType.bru_BNE
-    io.ctrl.immType := ImmType.IMM_B
-    io.ctrl.npcOp   := NPCOpType.NPC_BR
-  }
-  when(inst === BLT) {
-    io.ctrl.bruOp   := BRUOpType.bru_BLT
-    io.ctrl.immType := ImmType.IMM_B
-    io.ctrl.npcOp   := NPCOpType.NPC_BR
-  }
-  when(inst === BGE) {
-    io.ctrl.bruOp   := BRUOpType.bru_BGE
-    io.ctrl.immType := ImmType.IMM_B
-    io.ctrl.npcOp   := NPCOpType.NPC_BR
-  }
-  when(inst === BLTU) {
-    io.ctrl.bruOp   := BRUOpType.bru_BLTU
-    io.ctrl.immType := ImmType.IMM_B
-    io.ctrl.npcOp   := NPCOpType.NPC_BR
-  }
-  when(inst === BGEU) {
-    io.ctrl.bruOp   := BRUOpType.bru_BGEU
-    io.ctrl.immType := ImmType.IMM_B
-    io.ctrl.npcOp   := NPCOpType.NPC_BR
-  }
+  when(inst === BEQ) { bInst(BRUOpType.bru_BEQ) }
+  when(inst === BNE) { bInst(BRUOpType.bru_BNE) }
+  when(inst === BLT) { bInst(BRUOpType.bru_BLT) }
+  when(inst === BGE) { bInst(BRUOpType.bru_BGE) }
+  when(inst === BLTU) { bInst(BRUOpType.bru_BLTU) }
+  when(inst === BGEU) { bInst(BRUOpType.bru_BGEU) }
 
   /* ---------- JAL: jal rd, offset ---------- */
   when(inst === JAL) {
-    io.ctrl.immType := ImmType.IMM_J
-    io.ctrl.npcOp   := NPCOpType.NPC_JAL
-    io.ctrl.wbSel   := WBSel.WB_PC4
-    io.ctrl.rfWen   := true.B
+    io.out.immType := ImmType.IMM_J
+    io.out.npcOp   := NPCOpType.NPC_JAL
+    io.out.wbSel   := WBSel.WB_PC4
+    io.out.rfWen   := true.B
   }
 
   /* ---------- JALR: jalr rd, rs1, offset ---------- */
   when(inst === JALR) {
-    io.ctrl.immType := ImmType.IMM_I
-    io.ctrl.npcOp   := NPCOpType.NPC_JALR
-    io.ctrl.wbSel   := WBSel.WB_PC4
-    io.ctrl.rfWen   := true.B
+    io.out.immType := ImmType.IMM_I
+    io.out.npcOp   := NPCOpType.NPC_JALR
+    io.out.wbSel   := WBSel.WB_PC4
+    io.out.rfWen   := true.B
   }
 
   /* ---------- LUI: lui rd, imm ---------- */
   when(inst === LUI) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_ZERO
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_U
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
+    io.out.aluOp   := ALUOpType.alu_ADD
+    io.out.aluOp1  := ALUOp1Sel.OP1_ZERO
+    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.immType := ImmType.IMM_U
+    io.out.wbSel   := WBSel.WB_ALU
+    io.out.rfWen   := true.B
   }
 
   /* ---------- AUIPC: auipc rd, imm ---------- */
   when(inst === AUIPC) {
-    io.ctrl.aluOp   := ALUOpType.alu_ADD
-    io.ctrl.aluOp1  := ALUOp1Sel.OP1_PC
-    io.ctrl.aluOp2  := ALUOp2Sel.OP2_IMM
-    io.ctrl.immType := ImmType.IMM_U
-    io.ctrl.wbSel   := WBSel.WB_ALU
-    io.ctrl.rfWen   := true.B
+    io.out.aluOp   := ALUOpType.alu_ADD
+    io.out.aluOp1  := ALUOp1Sel.OP1_PC
+    io.out.aluOp2  := ALUOp2Sel.OP2_IMM
+    io.out.immType := ImmType.IMM_U
+    io.out.wbSel   := WBSel.WB_ALU
+    io.out.rfWen   := true.B
   }
+
 }
 
 object CU extends App {

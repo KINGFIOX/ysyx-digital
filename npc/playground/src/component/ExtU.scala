@@ -31,7 +31,7 @@ class ExtU extends Module with HasCoreParameter {
   private val inst = io.in.inst
 
   // I-type: imm[11:0] = inst[31:20]
-  private val immI = Cat(Fill(20, inst(31)), inst(31, 20))
+  private val immI = Cat(Fill(20, inst(31)) /*符号拓展*/ , inst(31, 20))
 
   // S-type: imm[11:0] = {inst[31:25], inst[11:7]}
   private val immS = Cat(Fill(20, inst(31)), inst(31, 25), inst(11, 7))
