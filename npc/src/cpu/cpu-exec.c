@@ -76,7 +76,8 @@ void gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
   memset(p, ' ', space_len); // 打印一些空格, 用来对齐的
   p += space_len;
 
-  bool ret = disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
+  bool ret =
+      disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
   if (!ret) {
     invalid_inst(pc);
   }
@@ -112,7 +113,8 @@ static void dump_iringbuf(void) {
 
   for (size_t idx = 0; idx < valid; idx++) {
     size_t pos = (start + idx) % CONFIG_IRINGBUF_SIZE;
-    gen_logbuf(logbuf, sizeof(logbuf), g_iringbuf.items[pos].pc, g_iringbuf.items[pos].snpc, &g_iringbuf.items[pos].isa);
+    gen_logbuf(logbuf, sizeof(logbuf), g_iringbuf.items[pos].pc,
+               g_iringbuf.items[pos].snpc, &g_iringbuf.items[pos].isa);
 
     if (idx == valid - 1) {
       LogInst("--> %s", logbuf);
@@ -124,9 +126,7 @@ static void dump_iringbuf(void) {
 
 #endif
 
-static bool exec_once(Decode *s) {
-  return npc_core_step(s);
-}
+static bool exec_once(Decode *s) { return npc_core_step(s); }
 
 static void execute(uint64_t n) {
   Decode s;
@@ -217,7 +217,7 @@ void cpu_exec(uint64_t n) {
     break; // 重新回到 sdb 的 mainloop 中, 等待用户的命令
 
   // 下面几个状态, 运行结束
-  case NPC_END: // guest 程序执行完成
+  case NPC_END:   // guest 程序执行完成
   case NPC_ABORT: // host 内部错误
     Log("npc: %s at pc = " FMT_WORD,
         (npc_state.state == NPC_ABORT

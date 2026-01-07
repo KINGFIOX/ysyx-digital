@@ -46,8 +46,7 @@ class MemU extends Module with HasCoreParameter {
   private val pmemWrite = Module(new DpiPmemWrite)
 
   /* ---------- 辅助信号 ---------- */
-  private val isLoad  =
-    io.in.op.isOneOf(MemUOpType.mem_LB, MemUOpType.mem_LH, MemUOpType.mem_LW, MemUOpType.mem_LBU, MemUOpType.mem_LHU)
+  private val isLoad  = io.in.op.isOneOf(MemUOpType.mem_LB, MemUOpType.mem_LH, MemUOpType.mem_LW, MemUOpType.mem_LBU, MemUOpType.mem_LHU)
   private val isStore = io.in.op.isOneOf(MemUOpType.mem_SB, MemUOpType.mem_SH, MemUOpType.mem_SW)
   private val subword = io.in.addr(dataBytesBits - 1, 0) // 字内偏移 (1:0)
 
@@ -75,15 +74,16 @@ class MemU extends Module with HasCoreParameter {
   private val safeAddr = Mux(io.en, io.in.addr, "h80000000".U(XLEN.W))
 
   /* ---------- DPI 读取控制 ---------- */
-  pmemRead.io.en   := io.en && isLoad
-  pmemRead.io.addr := safeAddr
-  pmemRead.io.len  := readLen
+  pmemRead.io.en    := io.en && isLoad
+  pmemRead.io.addr  := safeAddr
+  pmemRead.io.len   := readLen
 
   /* ---------- DPI 写入控制 ---------- */
-  pmemWrite.io.en   := io.en && isStore
-  pmemWrite.io.addr := safeAddr
-  pmemWrite.io.len  := writeLen
-  pmemWrite.io.data := io.in.wdata // DPI 侧会根据 len 和 addr 处理字节选择
+  pmemWrite.io.clock := clock
+  pmemWrite.io.en    := io.en && isStore
+  pmemWrite.io.addr  := safeAddr
+  pmemWrite.io.len   := writeLen
+  pmemWrite.io.data  := io.in.wdata // DPI 侧会根据 len 和 addr 处理字节选择
 
   /* ---------- 读取数据处理 ---------- */
   private val rawData = pmemRead.io.data

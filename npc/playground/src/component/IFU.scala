@@ -26,9 +26,9 @@ class IFU extends Module with HasCoreParameter {
 
   // read from irom
   private val pmemRead = Module(new DpiPmemRead)
-  pmemRead.io.en   := io.in.step
-  pmemRead.io.addr := pc_
-  pmemRead.io.len  := 4.U
+  pmemRead.io.en    := io.in.step
+  pmemRead.io.addr  := pc_
+  pmemRead.io.len   := 4.U
 
   io.out.inst := pmemRead.io.data
   io.out.pc   := pc_
