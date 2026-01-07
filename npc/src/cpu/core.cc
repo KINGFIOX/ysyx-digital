@@ -35,9 +35,7 @@ static uint64_t sim_time = 0;  // 仿真时间, 用于波形 dump
 #endif
 
 
-/**
- * 拉一个时钟周期: clock 0->1 (上升沿触发)
- */
+/// @brief 打一拍(寄存器更新)
 static void tick() {
   // 下降沿
   top->clock = 0;
@@ -116,9 +114,7 @@ extern "C" void npc_core_fini(void) {
   Log("Verilator core finalized");
 }
 
-/**
- * 从 Verilator 模型读取 commit 信息, 写入 Decode 结构体
- */
+/// @brief 读取 commit 信息, 写入 Decode 结构体
 static void read_commit_to_decode(Decode *s) {
   s->pc = top->io_commit_pc;
   s->dnpc = top->io_commit_dnpc;
@@ -126,11 +122,8 @@ static void read_commit_to_decode(Decode *s) {
   s->isa.inst = top->io_commit_inst;
 }
 
-/**
- * 从 Verilator 模型同步 GPR 到全局 cpu 结构体
- */
+/// @brief 软件维护了硬件的状态, 主要是为了方便 difftest and tracee
 static void sync_gpr_to_cpu() {
-  // Verilator 生成的信号: io_commit_gpr_0 ~ io_commit_gpr_31
   cpu.gpr[0]  = top->io_commit_gpr_0;
   cpu.gpr[1]  = top->io_commit_gpr_1;
   cpu.gpr[2]  = top->io_commit_gpr_2;
@@ -166,28 +159,11 @@ static void sync_gpr_to_cpu() {
 }
 
 extern "C" bool npc_core_step(Decode *s) {
-  // 单周期设计: step=1 时, 一个时钟周期内完成取指/译码/执行/写回
-
-  // 拉高 step 信号
-  top->io_step = 1;
-
-  // eval() 让组合逻辑稳定, 此时可以读取当前 PC/指令
-  top->eval();
-
-  // 读取 commit 信息 (执行前的 PC/指令/GPR 状态)
-  read_commit_to_decode(s);
-
-  // 驱动一个时钟周期, 完成寄存器更新 (PC 和 GPR 写回)
-  tick();
-
-  // 同步写回后的 GPR 到 cpu 结构体
-  sync_gpr_to_cpu();
-
-  // 拉低 step 信号
-  top->io_step = 0;
-
-  // 更新全局 PC
-  cpu.pc = s->dnpc;
-
+  top->io_step = 1; top->eval(); // 拉高 step 信号
+  read_commit_to_decode(s); // 组合逻辑的求值
+  cpu.pc = s->dnpc; //
+  tick(); // 更新寄存器
+  sync_gpr_to_cpu(); // 读出写入后的寄存器
+  top->io_step = 0; top->eval(); // 拉低 step 信号
   return true;
 }
