@@ -32,7 +32,9 @@ void init_log(const char *log_file) {
 
 bool log_enable() {
   return MUXDEF(CONFIG_TRACE,
-    (g_nr_guest_inst >= CONFIG_TRACE_START) && (g_nr_guest_inst <= CONFIG_TRACE_END) && IFDEF(CONFIG_ITRACE, log_fp != NULL),
+    (g_nr_guest_inst >= CONFIG_TRACE_START)
+      && (g_nr_guest_inst <= CONFIG_TRACE_END)
+      && MUXDEF(CONFIG_ITRACE, log_fp != NULL, true), // 对于 &&, 幺元是 true
     false
   );
 }

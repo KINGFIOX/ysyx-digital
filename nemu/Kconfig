@@ -23,20 +23,7 @@ if ISA_riscv
 source "src/isa/riscv32/Kconfig"
 endif
 
-choice
-  prompt "NEMU execution engine"
-  default ENGINE_INTERPRETER
-
-config ENGINE_INTERPRETER
-  bool "Interpreter"
-  help
-    Interpreter guest instructions one by one.
-endchoice
-
-config ENGINE
-  string
-  default "interpreter" if ENGINE_INTERPRETER
-  default "none"
+# =============================== mode selection =============================== #
 
 choice
   prompt "Running mode"
@@ -115,9 +102,13 @@ config CC_ASAN
   default n
 endmenu
 
+# =============================== testing and debugging =============================== #
+# 这种带有调试性质的, 只能在 Native ELF 模式下启用
+
 menu "Testing and Debugging"
 
 config TRACE
+  depends on TARGET_NATIVE_ELF
   bool "Enable tracer"
   default y
 
@@ -132,7 +123,7 @@ config TRACE_END
   default 10000
 
 config ITRACE
-  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable instruction tracer"
   default y
 
@@ -147,9 +138,9 @@ config IRINGBUF_SIZE
   default 16
 
 config FTRACE
-  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable function tracer"
-  default y
+  default n
 
 config FTRACE_STACK_MAX
   depends on FTRACE
@@ -162,7 +153,7 @@ config FTRACE_LOG_SIZE
   default 512
 
 config MTRACE
-  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable memory tracer"
   default y
 
@@ -172,14 +163,14 @@ config MTRACE_COND
   default "true"
 
 config DTRACE
-  depends on TRACE && TARGET_NATIVE_ELF && ENGINE_INTERPRETER
+  depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable device tracer"
   default y
 
 config WATCHPOINT
+  depends on TARGET_NATIVE_ELF
   bool "Enable watchpoint"
   default y
-
 
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
@@ -214,6 +205,8 @@ config DIFFTEST_REF_NAME
   default "spike" if DIFFTEST_REF_SPIKE
   default "none"
 endmenu
+
+# =============================== testing and debugging =============================== #
 
 if MODE_SYSTEM
 source "src/memory/Kconfig"
