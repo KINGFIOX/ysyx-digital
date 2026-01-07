@@ -25,7 +25,7 @@ endif
 
 config VERILATOR_TRACE
   bool "Enable Verilator VCD waveform trace"
-  default n
+  default y
   help
     Generate VCD waveform file for debugging.
     Output: build/npc_core.vcd
@@ -130,7 +130,7 @@ config IRINGBUF_SIZE
 config FTRACE
   depends on TRACE && TARGET_NATIVE_ELF
   bool "Enable function tracer"
-  default y
+  default n
 
 config FTRACE_STACK_MAX
   depends on FTRACE
@@ -169,6 +169,8 @@ config DIFFTEST
   help
     Enable differential testing with a reference design.
     Note that this will significantly reduce the performance of NEMU.
+
+endmenu
 
 source "src/memory/Kconfig"
 source "src/device/Kconfig"

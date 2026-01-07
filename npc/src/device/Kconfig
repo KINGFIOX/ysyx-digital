@@ -69,7 +69,6 @@ config VGA_SIZE_800x600
 endchoice
 endif # HAS_VGA
 
-if !TARGET_AM
 menuconfig HAS_AUDIO
   bool "Enable audio"
   default y
@@ -115,6 +114,5 @@ config SDCARD_IMG_PATH
   string "The path of sdcard image"
   default ""
 endif # HAS_SDCARD
-endif
 
 endif # DEVICE
