@@ -17,7 +17,7 @@ object ALUOp1Sel extends ChiselEnum {
 
 /** ALU 操作数2 选择 */
 object ALUOp2Sel extends ChiselEnum {
-  val OP2_RS2, OP2_IMM, OP2_4 = Value
+  val OP2_RS2, OP2_IMM = Value
 }
 
 /** 写回数据选择 */

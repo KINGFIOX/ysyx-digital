@@ -70,7 +70,6 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
     Seq(
       (cu.io.out.aluSel2 === ALUOp2Sel.OP2_RS2) -> rs2Data,
       (cu.io.out.aluSel2 === ALUOp2Sel.OP2_IMM) -> imm,
-      (cu.io.out.aluSel2 === ALUOp2Sel.OP2_4)   -> 4.U
     )
   )
   alu.io.in.aluOp := cu.io.out.aluOp
