@@ -39,25 +39,11 @@ void init_disasm() {
   cs_free_dl = dlsym(dl_handle, "cs_free");
   assert(cs_free_dl);
 
-  cs_arch arch = MUXDEF(CONFIG_ISA_x86,      CS_ARCH_X86,
-                   MUXDEF(CONFIG_ISA_mips32, CS_ARCH_MIPS,
-                   MUXDEF(CONFIG_ISA_riscv,  CS_ARCH_RISCV,
-                   MUXDEF(CONFIG_ISA_loongarch32r,  CS_ARCH_LOONGARCH, -1))));
-  cs_mode mode = MUXDEF(CONFIG_ISA_x86,      CS_MODE_32,
-                   MUXDEF(CONFIG_ISA_mips32, CS_MODE_MIPS32,
-                   MUXDEF(CONFIG_ISA_riscv,  MUXDEF(CONFIG_ISA64, CS_MODE_RISCV64, CS_MODE_RISCV32) | CS_MODE_RISCVC,
-                   MUXDEF(CONFIG_ISA_loongarch32r,  CS_MODE_LOONGARCH32, -1))));
+  cs_arch arch = CS_ARCH_RISCV;
+
+  cs_mode mode = MUXDEF(CONFIG_ISA64, CS_MODE_RISCV64, CS_MODE_RISCV32) | CS_MODE_RISCVC;
 	int ret = cs_open_dl(arch, mode, &handle);
   assert(ret == CS_ERR_OK);
-
-#ifdef CONFIG_ISA_x86
-  cs_err (*cs_option_dl)(csh handle, cs_opt_type type, size_t value) = NULL;
-  cs_option_dl = dlsym(dl_handle, "cs_option");
-  assert(cs_option_dl);
-
-  ret = cs_option_dl(handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);
-  assert(ret == CS_ERR_OK);
-#endif
 }
 
 /// @return true 成功反汇编
