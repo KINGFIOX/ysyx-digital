@@ -23,7 +23,6 @@ typedef struct watchpoint {
   int NO;
   struct watchpoint *next;
 
-  /* TODO: Add more members if necessary */
   char expr[1024]; // 记录表达式 
   word_t last_value; // 上一次的值
 

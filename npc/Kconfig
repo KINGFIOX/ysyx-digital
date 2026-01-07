@@ -170,25 +170,6 @@ config DIFFTEST
     Enable differential testing with a reference design.
     Note that this will significantly reduce the performance of NEMU.
 
-choice
-  prompt "Reference design"
-  default DIFFTEST_REF_QEMU
-  depends on DIFFTEST
-config DIFFTEST_REF_QEMU
-  bool "QEMU, communicate with socket"
-endchoice
-
-config DIFFTEST_REF_PATH
-  string
-  default "tools/qemu-diff" if DIFFTEST_REF_QEMU
-  default "none"
-
-config DIFFTEST_REF_NAME
-  string
-  default "qemu" if DIFFTEST_REF_QEMU
-  default "none"
-endmenu
-
 source "src/memory/Kconfig"
 source "src/device/Kconfig"
 
