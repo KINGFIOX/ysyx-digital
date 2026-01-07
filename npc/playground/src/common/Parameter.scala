@@ -26,6 +26,8 @@ trait HasDRAMParameter {
  */
 trait HasCoreParameter {
   implicit val XLEN: Int = 32 // 机器字长
+  implicit val InstLen : Int = 32 // 指令字长
+  implicit val OpcodeLen : Int = 7
   // val AddrBits  = XLEN // AddrBits is used in some cases
   // val DataBits  = XLEN // 一个 word 有几个 bit
   def dataBytes     = XLEN >> 3 // 一个 word 有几个字节  4

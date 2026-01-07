@@ -36,36 +36,16 @@ class ALU extends Module with HasCoreParameter {
   io.out.result := 0.U // default
 
   switch(io.in.aluOp) {
-    is(ALUOpType.alu_ADD) {
-      io.out.result := op1 + op2
-    }
-    is(ALUOpType.alu_SUB) {
-      io.out.result := op1 - op2
-    }
-    is(ALUOpType.alu_AND) {
-      io.out.result := op1 & op2
-    }
-    is(ALUOpType.alu_OR) {
-      io.out.result := op1 | op2
-    }
-    is(ALUOpType.alu_XOR) {
-      io.out.result := op1 ^ op2
-    }
-    is(ALUOpType.alu_SLL) {
-      io.out.result := op1 << shamt
-    }
-    is(ALUOpType.alu_SRL) {
-      io.out.result := op1 >> shamt
-    }
-    is(ALUOpType.alu_SRA) {
-      io.out.result := (op1.asSInt >> shamt).asUInt
-    }
-    is(ALUOpType.alu_SLT) {
-      io.out.result := op1.asSInt < op2.asSInt
-    }
-    is(ALUOpType.alu_SLTU) {
-      io.out.result := op1 < op2
-    }
+    is(ALUOpType.alu_ADD) { io.out.result := op1 + op2 }
+    is(ALUOpType.alu_SUB) { io.out.result := op1 - op2 }
+    is(ALUOpType.alu_AND) { io.out.result := op1 & op2 }
+    is(ALUOpType.alu_OR) { io.out.result := op1 | op2 }
+    is(ALUOpType.alu_XOR) { io.out.result := op1 ^ op2 }
+    is(ALUOpType.alu_SLL) { io.out.result := op1 << shamt }
+    is(ALUOpType.alu_SRL) { io.out.result := op1 >> shamt }
+    is(ALUOpType.alu_SRA) { io.out.result := (op1.asSInt >> shamt).asUInt }
+    is(ALUOpType.alu_SLT) { io.out.result := op1.asSInt < op2.asSInt }
+    is(ALUOpType.alu_SLTU) { io.out.result := op1 < op2 }
   }
 }
 

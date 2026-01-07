@@ -164,10 +164,6 @@ static void sync_gpr_to_cpu() {
   cpu.gpr[31] = top->io_commit_gpr_31;
 }
 
-// ebreak/ecall 指令机器码定义
-#define INST_EBREAK 0x00100073
-#define INST_ECALL  0x00000073
-
 extern "C" bool npc_core_step(Decode *s) {
   // 单周期设计: step=1 时, 一个时钟周期内完成取指/译码/执行/写回
 
@@ -191,13 +187,6 @@ extern "C" bool npc_core_step(Decode *s) {
 
   // 更新全局 PC
   cpu.pc = s->dnpc;
-
-  // 检测 ebreak/ecall 指令, 触发 NPCTRAP
-  uint32_t inst = s->isa.inst;
-  if (inst == INST_EBREAK || inst == INST_ECALL) {
-    // R(10) 是 $a0 寄存器, 作为返回值
-    NPCTRAP(s->pc, cpu.gpr[10]);
-  }
 
   return true;
 }

@@ -5,13 +5,14 @@ import chisel3.util._
 
 import common.{HasCoreParameter, HasRegFileParameter}
 import component._
+import blackbox.{DpiEbreak, DpiInvalidInst}
 
 /** 用来给 Verilator 暴露提交信息, 便于在 C++ 侧采样做差分测试 */
 class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter {
   val valid  = Output(Bool())
   val pc     = Output(UInt(XLEN.W))
   val nextPc = Output(UInt(XLEN.W))
-  val inst   = Output(UInt(XLEN.W))
+  val inst   = Output(UInt(InstLen.W))
   val gpr    = Output(Vec(NRReg, UInt(XLEN.W)))
 }
 
@@ -22,29 +23,31 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   })
 
   /* ========== 实例化各模块 ========== */
-  val ifu  = Module(new IFU)
-  val cu   = Module(new CU)
-  val extU = Module(new ExtU)
-  val rfu  = Module(new RFU)
-  val alu  = Module(new ALU)
-  val bru  = Module(new BRU)
-  val memU = Module(new MemU)
+  private val ifu  = Module(new IFU)
+  private val cu   = Module(new CU)
+  private val igu  = Module(new IGU)
+  private val rfu  = Module(new RFU)
+  private val alu  = Module(new ALU)
+  private val bru  = Module(new BRU)
+  private val memU = Module(new MemU)
+  private val ebreakDpi = Module(new DpiEbreak)
+  private val invalidInstDpi = Module(new DpiInvalidInst)
 
   /* ========== 指令字段提取 ========== */
-  val inst = ifu.io.out.inst
-  val pc   = ifu.io.out.pc
-  val snpc = ifu.io.out.snpc
-  val rd   = inst(11, 7)
-  val rs1  = inst(19, 15)
-  val rs2  = inst(24, 20)
+  private val inst = ifu.io.out.inst
+  private val pc   = ifu.io.out.pc
+  private val snpc = ifu.io.out.snpc
+  private val rd   = inst(11, 7)
+  private val rs1  = inst(19, 15)
+  private val rs2  = inst(24, 20)
 
   /* ========== 控制单元 ========== */
   cu.io.in.inst := inst
 
   /* ========== 立即数扩展 ========== */
-  extU.io.in.inst    := inst
-  extU.io.in.immType := cu.io.out.immType
-  val imm = extU.io.out.imm
+  igu.io.in.inst_31_7 := inst(InstLen - 1, OpcodeLen) // 只传递 inst[31:7], 不需要 opcode
+  igu.io.in.immType   := cu.io.out.immType
+  val imm = igu.io.out.imm
 
   /* ========== 寄存器堆读取 ========== */
   rfu.io.in.rs1_i := rs1
@@ -116,6 +119,18 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   /* ========== IFU 连接 ========== */
   // dnpc 只在 step 有效时更新
   ifu.io.in.dnpc := Mux(io.step, dnpc, pc)
+
+  /* ========== EBREAK DPI 调用 ========== */
+  // 只在 step 有效且是 ebreak 指令时触发
+  ebreakDpi.io.en := io.step && cu.io.out.isEbreak
+  ebreakDpi.io.pc := pc
+  ebreakDpi.io.a0 := rfu.io.out.gpr(10) // $a0 = x10, 作为返回值
+
+  /* ========== Invalid Instruction DPI 调用 ========== */
+  // 只在 step 有效且是无效指令时触发
+  invalidInstDpi.io.en   := io.step && cu.io.out.invalidInst
+  invalidInstDpi.io.pc   := pc
+  invalidInstDpi.io.inst := inst
 
   /* ========== Commit 输出 (供 difftest) ========== */
   io.commit.valid  := io.step

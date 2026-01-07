@@ -6,7 +6,7 @@ import common.HasCoreParameter
 import blackbox.DpiPmemRead
 
 class IFOutputBundle extends Bundle with HasCoreParameter {
-  val inst = Output(UInt(XLEN.W)) //
+  val inst = Output(UInt(InstLen.W)) //
   val snpc = Output(UInt(XLEN.W)) // which is pc + 4
   val pc   = Output(UInt(XLEN.W)) // the pc of the instruction
 }

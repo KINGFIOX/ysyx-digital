@@ -47,10 +47,14 @@ class CUOutputBundle extends Bundle with HasRegFileParameter {
   // 分支控制
   val bruOp   = Output(BRUOpType())
   val npcOp   = Output(NPCOpType())
+  // 特殊指令
+  val isEbreak = Output(Bool())
+  // 无效指令
+  val invalidInst = Output(Bool())
 }
 
 class CUInputBundle extends Bundle with HasCoreParameter {
-  val inst = Output(UInt(XLEN.W))
+  val inst = Output(UInt(InstLen.W))
 }
 
 class CU extends Module with HasCoreParameter with HasRegFileParameter {
@@ -72,7 +76,10 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
 
   io.out.memEn := false.B         // 禁止写入, 状态不变
   io.out.rfWen := false.B
-  io.out.npcOp := NPCOpType.NPC_4 //
+  io.out.npcOp := NPCOpType.NPC_4 // 默认 pc + 4
+  io.out.isEbreak := false.B
+  io.out.invalidInst := true.B
+
 
   /* ---------- R-type: add rd, rs1, rs2 ---------- */
   private def rInst(op: ALUOpType.Type): Unit /*无返回值*/ = {
@@ -81,6 +88,7 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.aluOp2 := ALUOp2Sel.OP2_RS2
     io.out.wbSel  := WBSel.WB_ALU
     io.out.rfWen  := true.B
+    io.out.invalidInst := false.B
   }
   when(inst === ADD) { rInst(ALUOpType.alu_ADD) }
   when(inst === SUB) { rInst(ALUOpType.alu_SUB) }
@@ -101,6 +109,7 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.immType := ImmType.IMM_I
     io.out.wbSel   := WBSel.WB_ALU
     io.out.rfWen   := true.B
+    io.out.invalidInst := false.B
   }
   when(inst === ADDI) { iInst(ALUOpType.alu_ADD) }
   when(inst === ANDI) { iInst(ALUOpType.alu_AND) }
@@ -122,6 +131,7 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.memEn   := true.B
     io.out.wbSel   := WBSel.WB_MEM
     io.out.rfWen   := true.B
+    io.out.invalidInst := false.B
   }
   when(inst === LB) { lInst(MemUOpType.mem_LB) }
   when(inst === LH) { lInst(MemUOpType.mem_LH) }
@@ -137,6 +147,7 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.immType := ImmType.IMM_S
     io.out.memOp   := op
     io.out.memEn   := true.B
+    io.out.invalidInst := false.B
   }
   when(inst === SB) { sInst(MemUOpType.mem_SB) }
   when(inst === SH) { sInst(MemUOpType.mem_SH) }
@@ -147,6 +158,7 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.bruOp   := op
     io.out.immType := ImmType.IMM_B
     io.out.npcOp   := NPCOpType.NPC_BR
+    io.out.invalidInst := false.B
   }
   when(inst === BEQ) { bInst(BRUOpType.bru_BEQ) }
   when(inst === BNE) { bInst(BRUOpType.bru_BNE) }
@@ -161,6 +173,7 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.npcOp   := NPCOpType.NPC_JAL
     io.out.wbSel   := WBSel.WB_PC4
     io.out.rfWen   := true.B
+    io.out.invalidInst := false.B
   }
 
   /* ---------- JALR: jalr rd, rs1, offset ---------- */
@@ -169,6 +182,7 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.npcOp   := NPCOpType.NPC_JALR
     io.out.wbSel   := WBSel.WB_PC4
     io.out.rfWen   := true.B
+    io.out.invalidInst := false.B
   }
 
   /* ---------- LUI: lui rd, imm ---------- */
@@ -179,6 +193,7 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.immType := ImmType.IMM_U
     io.out.wbSel   := WBSel.WB_ALU
     io.out.rfWen   := true.B
+    io.out.invalidInst := false.B
   }
 
   /* ---------- AUIPC: auipc rd, imm ---------- */
@@ -189,6 +204,13 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.immType := ImmType.IMM_U
     io.out.wbSel   := WBSel.WB_ALU
     io.out.rfWen   := true.B
+    io.out.invalidInst := false.B
+  }
+
+  /* ---------- EBREAK: ebreak ---------- */
+  when(inst === EBREAK) {
+    io.out.isEbreak := true.B
+    io.out.invalidInst := false.B
   }
 
 }
