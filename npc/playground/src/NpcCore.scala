@@ -11,7 +11,7 @@ import blackbox.{DpiEbreak, DpiInvalidInst}
 class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter {
   val valid  = Output(Bool())
   val pc     = Output(UInt(XLEN.W))
-  val nextPc = Output(UInt(XLEN.W))
+  val dnpc = Output(UInt(XLEN.W))
   val inst   = Output(UInt(InstLen.W))
   val gpr    = Output(Vec(NRReg, UInt(XLEN.W)))
 }
@@ -119,6 +119,7 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   /* ========== IFU 连接 ========== */
   // dnpc 只在 step 有效时更新
   ifu.io.in.dnpc := Mux(io.step, dnpc, pc)
+  ifu.io.in.step := io.step
 
   /* ========== EBREAK DPI 调用 ========== */
   // 只在 step 有效且是 ebreak 指令时触发
@@ -135,7 +136,7 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   /* ========== Commit 输出 (供 difftest) ========== */
   io.commit.valid  := io.step
   io.commit.pc     := pc
-  io.commit.nextPc := dnpc
+  io.commit.dnpc := dnpc
   io.commit.inst   := inst
 
   // 输出寄存器堆 (从 RFU 读取所有寄存器)

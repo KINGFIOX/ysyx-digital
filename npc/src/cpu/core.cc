@@ -56,6 +56,7 @@ static void tick() {
 
 static void reset(int cycles = 5) {
   top->reset = 1;
+  top->io_step = 0; // 拉低 step 信号
   for (int i = 0; i < cycles; i++) {
     tick();
   }
@@ -120,7 +121,7 @@ extern "C" void npc_core_fini(void) {
  */
 static void read_commit_to_decode(Decode *s) {
   s->pc = top->io_commit_pc;
-  s->dnpc = top->io_commit_nextPc;
+  s->dnpc = top->io_commit_dnpc;
   s->snpc = s->pc + 4; // 对于 RV32, 静态下一条指令地址
   s->isa.inst = top->io_commit_inst;
 }

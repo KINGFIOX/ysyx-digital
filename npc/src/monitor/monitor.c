@@ -125,7 +125,7 @@ void init_monitor(int argc, char *argv[]) {
   /* Initialize memory. */
   init_mem();
 
-  /* Initialize devices. */
+  /* Initialize deviceabout:blanks. */
   IFDEF(CONFIG_DEVICE, init_device());
 
   /* Perform ISA dependent initialization. */
@@ -137,7 +137,7 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Initialize NPC core after loading the image */
   extern bool npc_core_init(int argc, char *argv[]);
-  npc_core_init(argc, argv);
+  npc_core_init(argc, argv); // 必须要在 load_img 之后初始化 npc
 
   /* Initialize function tracer. */
   IFDEF(CONFIG_FTRACE, init_ftrace(img_file));

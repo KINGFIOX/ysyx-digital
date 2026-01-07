@@ -13,6 +13,7 @@ class IFOutputBundle extends Bundle with HasCoreParameter {
 
 class IFInputBundle extends Bundle with HasCoreParameter {
   val dnpc = Output(UInt(XLEN.W))
+  val step = Output(Bool())
 }
 
 class IFU extends Module with HasCoreParameter {
@@ -25,7 +26,7 @@ class IFU extends Module with HasCoreParameter {
 
   // read from irom
   private val pmemRead = Module(new DpiPmemRead)
-  pmemRead.io.en   := true.B // TODO: 后面 SoC 的时候, 这里要改(暂时不动)
+  pmemRead.io.en   := io.in.step
   pmemRead.io.addr := pc_
   pmemRead.io.len  := 4.U
 
