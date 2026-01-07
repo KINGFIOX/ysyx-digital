@@ -225,7 +225,7 @@ menu "Miscellaneous"
 choice
   depends on !TARGET_AM
   prompt "Host timer"
-  default TIMER_GETTIMEOFDAY
+  default TIMER_CLOCK_GETTIME
 config TIMER_GETTIMEOFDAY
   bool "gettimeofday"
 config TIMER_CLOCK_GETTIME
