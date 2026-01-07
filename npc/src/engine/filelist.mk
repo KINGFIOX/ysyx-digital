@@ -13,5 +13,5 @@
 # See the Mulan PSL v2 for more details.
 #**************************************************************************************/
 
-INC_PATH += $(NPC_HOME)/src/engine/$(ENGINE)
-DIRS-y += src/engine/$(ENGINE)
+INC_PATH += $(NPC_HOME)/src/engine/verilator
+DIRS-y += src/engine/verilator

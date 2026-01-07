@@ -33,6 +33,6 @@ bool log_enable() {
   return MUXDEF(CONFIG_TRACE,
                 (g_nr_guest_inst >= CONFIG_TRACE_START) &&
                     (g_nr_guest_inst <= CONFIG_TRACE_END) &&
-                    IFDEF(CONFIG_ITRACE, log_fp != NULL),
+                    MUXDEF(CONFIG_ITRACE, log_fp != NULL, true),
                 false);
 }

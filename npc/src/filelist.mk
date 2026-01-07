@@ -14,7 +14,7 @@
 #**************************************************************************************/
 
 DIRS-y += src/cpu src/monitor src/utils
-DIRS-$(CONFIG_MODE_SYSTEM) += src/memory
+DIRS-y += src/memory
 
 CXXSRC += src/npc-main.cc
 CXXSRC += src/cpu/core.cc
