@@ -97,9 +97,6 @@ static bool checkregs(const CPU_state *ref, vaddr_t pc) {
   if (!isa_difftest_checkregs(ref, pc)) {
     nemu_state.state = NEMU_ABORT;
     nemu_state.halt_pc = pc;
-    isa_reg_display();
-    printf("reference pc:\t0x%08x\n", ref->pc);
-    printf("nemu pc:\t0x%08x\n", cpu.pc);
     return false;
   }
   return true;
