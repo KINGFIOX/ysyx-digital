@@ -9,13 +9,34 @@ static handler_t user_handler = NULL;
 Context* __am_irq_handle(Context *c) {
   if (user_handler) {
     Event ev = {0};
-    switch (c->mcause) {
-      case 11: ev.event = EVENT_SYSCALL; break;
-      default: ev.event = EVENT_ERROR; break;
+    uintptr_t mcause = c->mcause;
+    
+    if ((intptr_t)mcause < 0) {
+      uintptr_t interrupt_id = mcause & ((uintptr_t)-1 >> 1);
+      switch (interrupt_id) {
+        default:
+          ev.event = EVENT_ERROR;
+          ev.cause = mcause;
+          break;
+      }
+    } else {
+      switch (mcause) {
+        case 11: // ecall
+          c->mepc += 4; // 不要忘了系统调用的返回地址要 +4
+          if (c->gpr[17] == -1) {
+            ev.event = EVENT_YIELD;
+          } else {
+            ev.event = EVENT_SYSCALL;
+          }
+          break;
+        default:
+          ev.event = EVENT_ERROR;
+          ev.cause = mcause;
+          break;
+      }
     }
 
     c = user_handler(ev, c);
-    assert(c != NULL);
   }
 
   return c;
@@ -33,7 +54,9 @@ bool cte_init(handler_t handler) {
   return true;
 }
 
-Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
+typedef void (*entry_t)(void *);
+
+Context *kcontext(Area kstack, entry_t entry, void *arg) {
   return NULL;
 }
 

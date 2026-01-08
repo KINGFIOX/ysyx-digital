@@ -25,6 +25,11 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
   return csr(MTVEC);
 }
 
+word_t isa_return_intr(void) {
+  // TODO: mstatus
+  return csr(MEPC);
+}
+
 word_t isa_query_intr() {
   return INTR_EMPTY;
 }

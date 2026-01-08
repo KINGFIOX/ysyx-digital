@@ -15,6 +15,7 @@
 
 #include <isa.h>
 #include "local-include/reg.h"
+#include "macro.h"
 
 const char *regs[] = {
   "$0", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
@@ -26,7 +27,9 @@ const char *regs[] = {
 
 const char *csrs[] = {
   [MSTATUS] = "mstatus",
-  [MTVEC] = "mtvec"
+  [MTVEC] = "mtvec",
+  [MEPC] = "mepc",
+  [MCAUSE] = "mcause",
 };
 
 
@@ -39,15 +42,21 @@ void isa_reg_display() {
 word_t isa_reg_str2val(const char *s, bool *success) {
   if (success) { *success = true; }
 
-  for (int i = 0; i < 32; i++) {
+  if (strcmp(s, "pc") == 0) {
+    return cpu.pc;
+  }
+
+  for (int i = 0; i < ARRLEN(regs); i++) {
     if (strcmp(s, regs[i]) == 0) {
       return cpu.gpr[i];
     }
   }
 
-  if (strcmp(s, "pc") == 0) {
-    return cpu.pc;
-  }
+  // csrs
+  if (strcmp(s, "mstatus") == 0) { return cpu.csr[MSTATUS]; }
+  if (strcmp(s, "mtvec") == 0) { return cpu.csr[MTVEC]; }
+  if (strcmp(s, "mepc") == 0) { return cpu.csr[MEPC]; }
+  if (strcmp(s, "mcause") == 0) { return cpu.csr[MCAUSE]; }
 
   if (success) { *success = false; }
   return 0;
