@@ -164,8 +164,7 @@ static void statistic() {
         "frequency");
 }
 
-void assert_fail_msg() {
-  isa_reg_display();
+static void dump_trace_msg(void) {
 #ifdef CONFIG_ITRACE
   dump_iringbuf();
 #endif
@@ -181,6 +180,11 @@ void assert_fail_msg() {
 #ifdef CONFIG_ETRACE
   etrace_dump();
 #endif
+}
+
+void assert_fail_msg() {
+  isa_reg_display();
+  dump_trace_msg();
   statistic();
 }
 
@@ -210,8 +214,10 @@ void cpu_exec(uint64_t n) {
     nemu_state.state = NEMU_STOP;
     break;
 
-  case NEMU_END:
   case NEMU_ABORT:
+    dump_trace_msg();
+    // fall through
+  case NEMU_END:
     Log("nemu: %s at pc = " FMT_WORD,
         (nemu_state.state == NEMU_ABORT
              ? ANSI_FMT("ABORT", ANSI_FG_RED)
