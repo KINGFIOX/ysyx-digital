@@ -28,9 +28,18 @@ void isa_reg_display() {
   printf("pc:\t" FMT_WORD "\n", cpu.pc);
 }
 
+const char *csrs[] = {
+  [MSTATUS] = "mstatus",
+  [MTVEC] = "mtvec",
+  [MEPC] = "mepc",
+  [MCAUSE] = "mcause",
+};
+
 word_t isa_reg_str2val(const char *s, bool *success) {
-  if (success) {
-    *success = true;
+  if (success) { *success = true; }
+
+  if (strcmp(s, "pc") == 0) {
+    return cpu.pc;
   }
 
   for (int i = 0; i < 32; i++) {
@@ -39,9 +48,11 @@ word_t isa_reg_str2val(const char *s, bool *success) {
     }
   }
 
-  if (strcmp(s, "pc") == 0) {
-    return cpu.pc;
-  }
+  // csrs
+  if (strcmp(s, csrs[MSTATUS]) == 0) { return cpu.csr[MSTATUS]; }
+  if (strcmp(s, csrs[MTVEC]) == 0) { return cpu.csr[MTVEC]; }
+  if (strcmp(s, csrs[MEPC]) == 0) { return cpu.csr[MEPC]; }
+  if (strcmp(s, csrs[MCAUSE]) == 0) { return cpu.csr[MCAUSE]; }
 
   if (success) {
     *success = false;
