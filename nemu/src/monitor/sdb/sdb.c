@@ -23,7 +23,6 @@
 
 static int is_batch_mode = false;
 
-void init_regex();
 void init_wp_pool();
 
 /* We use the `readline' library to provide more flexibility to read from stdin. */
@@ -222,18 +221,31 @@ void sdb_mainloop() {
     return;
   }
 
+  static char last_cmd[1024] = "";
+  char cmd_buf[256];
+
   for (char *str; (str = rl_gets()) != NULL; ) {
-    char *str_end = str + strlen(str);
+
+    if (str[0] == '\0') { // 无输入
+      if (last_cmd[0] == '\0') { continue; } // 没有上一条指令
+      strncpy(cmd_buf, last_cmd, sizeof(cmd_buf) - 1);
+      cmd_buf[sizeof(cmd_buf) - 1] = '\0';
+    } else { // 有输入
+      strncpy(cmd_buf, str, sizeof(cmd_buf) - 1);
+      cmd_buf[sizeof(cmd_buf) - 1] = '\0'; // 考虑到可能输入长度恰好是 sizeof(cmd_buf)-1, 那么需要追加 '\0'
+    }
+
+    char *buf_end = cmd_buf + strlen(cmd_buf);
 
     /* extract the first token as the command */
-    char *cmd = strtok(str, " ");
+    char *cmd = strtok(cmd_buf, " "); // 取出第一个单词, 作为命令
     if (cmd == NULL) { continue; }
 
     /* treat the remaining string as the arguments,
      * which may need further parsing
      */
     char *args = cmd + strlen(cmd) + 1;
-    if (args >= str_end) {
+    if (args >= buf_end) {
       args = NULL;
     }
 
@@ -245,6 +257,13 @@ void sdb_mainloop() {
     int i;
     for (i = 0; i < NR_CMD; i ++) {
       if (strcmp(cmd, cmd_table[i].name) == 0) {
+        /* 保存有效命令（重新构造完整命令字符串） */
+        if (args != NULL) {
+          snprintf(last_cmd, sizeof(last_cmd), "%s %s", cmd, args); // 该命令有参数, 重新拼接完整命令
+        } else {
+          strncpy(last_cmd, cmd, sizeof(last_cmd) - 1); // 该命令没有参数, 直接复制命令
+          last_cmd[sizeof(last_cmd) - 1] = '\0';
+        }
         if (cmd_table[i].handler(args) < 0) { return; }
         break;
       }
@@ -255,9 +274,6 @@ void sdb_mainloop() {
 }
 
 void init_sdb() {
-  /* Compile the regular expressions. */
-  init_regex();
-
   /* Initialize the watchpoint pool. */
   init_wp_pool();
 }

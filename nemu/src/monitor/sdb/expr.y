@@ -120,7 +120,3 @@ int sdb_exprerror(const char *msg) {
   return -1;
 }
 
-void init_regex(void) {
-}
-
-
