@@ -190,6 +190,9 @@ void assert_fail_msg() {
 #ifdef CONFIG_FTRACE
   ftrace_dump();
 #endif
+#ifdef CONFIG_ETRACE
+  etrace_dump();
+#endif
   statistic();
 }
 

@@ -52,6 +52,13 @@ vaddr_t isa_return_intr(void);
 #define INTR_EMPTY ((word_t)-1)
 word_t isa_query_intr();
 
+// exception trace
+#ifdef CONFIG_ETRACE
+void etrace_dump(void);
+#else
+static inline void etrace_dump(void) {}
+#endif
+
 // difftest
 bool isa_difftest_checkregs(const CPU_state *ref_r, vaddr_t pc);
 void isa_difftest_attach();
