@@ -23,6 +23,13 @@ const char *regs[] = {
   "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"
 };
 
+
+const char *csrs[] = {
+  [MSTATUS] = "mstatus",
+  [MTVEC] = "mtvec"
+};
+
+
 void isa_reg_display() {
   for (int i = 0; i < 32; i++) {
     printf("%s:\t" FMT_WORD "\n", regs[i], cpu.gpr[i]);

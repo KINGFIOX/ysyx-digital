@@ -127,7 +127,7 @@ bool difftest_step(vaddr_t pc, vaddr_t npc) {
     // to skip the checking of an instruction, just copy the reg state to reference design
     ref_difftest_regcpy(&cpu, DIFFTEST_TO_REF);
     is_skip_ref = false; // 仅跳过一条指令的检查 
-    return true; // 因为这里直接将 qemu 的状态复制到了 nemu, 所以一定是一致的
+    return true; // 因为这里直接将 spike 的状态复制到了 nemu, 所以一定是一致的
   }
 
   ref_difftest_exec(1);
