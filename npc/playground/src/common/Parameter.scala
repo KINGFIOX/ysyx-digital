@@ -16,6 +16,11 @@ trait HasRegFileParameter {
   val NRRegbits = log2Up(NRReg)
 }
 
+trait HasCSRParameter {
+  val NRCSR     = 0x1000
+  val NRCSRbits = log2Up(NRCSR)
+}
+
 trait HasDRAMParameter {
   val DRAM_BASE = 0x8000_0000 // TODO:
   val DRAM_SIZE = 0x4000_0000
