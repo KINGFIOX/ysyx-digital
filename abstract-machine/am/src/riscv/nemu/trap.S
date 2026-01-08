@@ -56,6 +56,7 @@ __am_asm_trap:
 
   mv a0, sp
   call __am_irq_handle
+  mv sp, a0  # FIXME: 使用返回的 Context 指针作为新的 sp，实现上下文切换 (不知道这样对不对)
 
   LOAD t1, OFFSET_STATUS(sp)
   LOAD t2, OFFSET_EPC(sp)

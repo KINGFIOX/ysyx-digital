@@ -121,7 +121,6 @@ __EXPORT void difftest_init(int port) {
       NULL,
       true);
   s->diff_init(port); // 初始化 state, 因此设置 mstatus 要放在这句话之后
-  state->mstatus->write(0x1800); // For riscv32: mstatus = 0x1800, TODO: 日后这里要重新设置
 }
 
 __EXPORT void difftest_raise_intr(uint64_t NO) {

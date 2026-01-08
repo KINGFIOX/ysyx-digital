@@ -1,6 +1,8 @@
 #include <am.h>
 #include <riscv/riscv.h>
 #include <klib.h>
+#include <klib-macros.h>
+#include <stdint.h>
 
 typedef Context*(*handler_t)(Event, Context*);
 
@@ -35,7 +37,7 @@ Context* __am_irq_handle(Context *c) {
           break;
       }
     }
-
+    // 可能会切换到其他进程的上下文
     c = user_handler(ev, c);
   }
 
@@ -57,7 +59,16 @@ bool cte_init(handler_t handler) {
 typedef void (*entry_t)(void *);
 
 Context *kcontext(Area kstack, entry_t entry, void *arg) {
-  return NULL;
+  Context *c = (Context*)((uintptr_t)kstack.end - sizeof(Context)); // 栈底存放 Context
+  for (int i = 0; i < 32; i++) { // init all register with 0
+    c->gpr[i] = 0;
+  }
+  c->mepc = (uintptr_t)entry; // 通过 mret 跳转
+  c->gpr[10] = (uintptr_t)arg; // a0
+  c->mstatus = 0x1800; // MPP = 3
+  c->mcause = 0x1800;
+  c->pdir = NULL; // 暂时没用
+  return c;
 }
 
 void yield() {

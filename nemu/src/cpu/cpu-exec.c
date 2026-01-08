@@ -215,7 +215,6 @@ void cpu_exec(uint64_t n) {
     break;
 
   case NEMU_ABORT:
-    dump_trace_msg();
     // fall through
   case NEMU_END:
     Log("nemu: %s at pc = " FMT_WORD,
@@ -225,6 +224,7 @@ void cpu_exec(uint64_t n) {
                     ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN)
                     : ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
         nemu_state.halt_pc);
+    dump_trace_msg();
     // fall through
   case NEMU_QUIT:
     statistic();
