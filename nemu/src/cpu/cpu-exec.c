@@ -57,8 +57,7 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 }
 
 #ifdef CONFIG_ITRACE
-bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
-                const ISADecodeInfo *isa) {
+bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc, const ISADecodeInfo *isa) {
   // 效果:
   // 0x80000000: 00 00 02 97 auipc   t0, 0
   char *p = logbuf;
@@ -76,13 +75,11 @@ bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
   memset(p, ' ', space_len); // 打印一些空格, 用来对齐的
   p += space_len;
 
-  bool ret =
-      disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
+  bool ret = disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
   if (!ret) {
     logbuf[0] = '\0';
     return false;
   }
-
   return true;
 }
 #endif

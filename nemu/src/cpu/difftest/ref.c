@@ -33,6 +33,7 @@ __EXPORT void difftest_regcpy(void *dut, bool direction) {
   } else {
     memcpy(dut_cpu, &cpu, sizeof(CPU_state));
   }
+  // TODO: 还需要考虑 csr 的复制
 }
 
 __EXPORT void difftest_exec(uint64_t n) {
@@ -48,4 +49,5 @@ __EXPORT void difftest_init(int port) {
   init_mem();
   /* Perform ISA dependent initialization. */
   init_isa();
+  // TODO: 要设置 mstatus 为 0x1800
 }

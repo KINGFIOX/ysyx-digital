@@ -43,7 +43,7 @@ static inline bool map_inside(IOMap *map, paddr_t addr) {
 static inline int find_mapid_by_addr(paddr_t addr) {
   for (int i = 0; i < nr_map; i ++) {
     if (map_inside(&maps[i], addr)) {
-      difftest_skip_ref();
+      difftest_skip_ref(); // 不会对写入 mmio 的指令进行差分测试
       return i;
     }
   }

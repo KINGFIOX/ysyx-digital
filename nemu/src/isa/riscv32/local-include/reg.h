@@ -21,6 +21,8 @@
 enum {
   MSTATUS = 0x300,
   MTVEC = 0x305,
+  MEPC = 0x341,
+  MCAUSE = 0x342,
 };
 
 static inline int check_gpr_idx(int idx) {
@@ -30,7 +32,9 @@ static inline int check_gpr_idx(int idx) {
 #define gpr(idx) (cpu.gpr[check_gpr_idx(idx)])
 
 static inline int check_csr_idx(int idx) {
-  IFDEF(CONFIG_RT_CHECK, assert(idx == MTVEC));
+  IFDEF(CONFIG_RT_CHECK, assert(
+    idx == MTVEC || idx == MSTATUS || idx == MEPC || idx == MCAUSE)
+  );
   return idx;
 }
 #define csr(idx) (cpu.csr[check_csr_idx(idx)])
