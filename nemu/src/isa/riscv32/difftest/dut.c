@@ -43,7 +43,7 @@
    printf("+------+------------+------------+----------+\n");
    printf("|   %sDifftest FAILED at PC = " FMT_WORD "%s    |\n", ANSI_FG_YELLOW, pc, ANSI_NONE);
    printf("+------+------------+------------+----------+\n");
-   printf("| Reg  | REF        | NPC        | Status   |\n");
+   printf("| Reg  | REF        | NEMU       | Status   |\n");
    printf("+------+------------+------------+----------+\n");
    
    // 打印通用寄存器
