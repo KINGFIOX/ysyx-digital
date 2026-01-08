@@ -3,6 +3,7 @@ include $(AM_HOME)/scripts/platform/npc.mk
 CFLAGS  += -DISA_H=\"riscv/riscv.h\"
 COMMON_CFLAGS += -march=rv32i_zicsr -mabi=ilp32  # overwrite
 LDFLAGS       += -melf32lriscv                    # overwrite
+LIBGCC        := $(shell riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -print-libgcc-file-name)
 
 AM_SRCS += riscv/npc/start.S \
            riscv/npc/cte.c \
