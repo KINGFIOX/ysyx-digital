@@ -170,8 +170,7 @@ static void statistic() {
         "frequency");
 }
 
-void assert_fail_msg() {
-  isa_reg_display();
+static void dump_trace_msg(void) {
 #ifdef CONFIG_ITRACE
   dump_iringbuf();
 #endif
@@ -187,6 +186,11 @@ void assert_fail_msg() {
 #ifdef CONFIG_VERILATOR_TRACE
   npc_core_flush_trace();
 #endif
+}
+
+void assert_fail_msg() {
+  isa_reg_display();
+  dump_trace_msg();
   statistic();
 }
 
@@ -217,8 +221,8 @@ void cpu_exec(uint64_t n) {
     break; // 重新回到 sdb 的 mainloop 中, 等待用户的命令
 
   // 下面几个状态, 运行结束
-  case NPC_END:   // guest 程序执行完成
   case NPC_ABORT: // host 内部错误
+  case NPC_END:   // guest 程序执行完成
     Log("npc: %s at pc = " FMT_WORD,
         (npc_state.state == NPC_ABORT
              ? ANSI_FMT("ABORT", ANSI_FG_RED)
@@ -227,6 +231,7 @@ void cpu_exec(uint64_t n) {
                     : ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
         npc_state.halt_pc);
     // fall through
+    dump_trace_msg();
   case NPC_QUIT:
     statistic();
   }

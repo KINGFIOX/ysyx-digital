@@ -3,17 +3,19 @@ package npc
 import chisel3._
 import chisel3.util._
 
-import common.{HasCoreParameter, HasRegFileParameter}
+import common.{HasCoreParameter, HasRegFileParameter, HasCSRParameter}
 import component._
 import blackbox.{DpiEbreak, DpiInvalidInst}
 
 /** 用来给 Verilator 暴露提交信息, 便于在 C++ 侧采样做差分测试 */
-class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter {
+class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter with HasCSRParameter {
   val valid  = Output(Bool())
   val pc     = Output(UInt(XLEN.W))
-  val dnpc = Output(UInt(XLEN.W))
+  val dnpc   = Output(UInt(XLEN.W))
   val inst   = Output(UInt(InstLen.W))
   val gpr    = Output(Vec(NRReg, UInt(XLEN.W)))
+  // CSR 提交信息
+  val csr    = Output(new CSRUCommitBundle)
 }
 
 class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
@@ -30,16 +32,18 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   private val alu  = Module(new ALU)
   private val bru  = Module(new BRU)
   private val memU = Module(new MemU)
+  private val csru = Module(new CSRU)
   private val ebreakDpi = Module(new DpiEbreak)
   private val invalidInstDpi = Module(new DpiInvalidInst)
 
   /* ========== 指令字段提取 ========== */
-  private val inst = ifu.io.out.inst
-  private val pc   = ifu.io.out.pc
-  private val snpc = ifu.io.out.snpc
-  private val rd   = inst(11, 7)
-  private val rs1  = inst(19, 15)
-  private val rs2  = inst(24, 20)
+  private val inst    = ifu.io.out.inst
+  private val pc      = ifu.io.out.pc
+  private val snpc    = ifu.io.out.snpc
+  private val rd      = inst(11, 7)
+  private val rs1     = inst(19, 15)
+  private val rs2     = inst(24, 20)
+  private val csrAddr = inst(31, 20) // CSR 地址
 
   /* ========== 控制单元 ========== */
   cu.io.in.inst := inst
@@ -82,11 +86,21 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   val brTaken = bru.io.out.br_flag
 
   /* ========== 内存单元 ========== */
-  memU.io.in.en       := io.step && cu.io.out.memEn
+  memU.io.in.en    := io.step && cu.io.out.memEn
   memU.io.in.op    := cu.io.out.memOp
   memU.io.in.addr  := aluResult // ALU 计算出的地址
   memU.io.in.wdata := rs2Data   // Store 的数据
   val memData = memU.io.out.rdata
+
+  /* ========== CSR 单元 ========== */
+  csru.io.in.addr     := csrAddr
+  csru.io.in.op       := cu.io.out.csrOp
+  csru.io.in.wen      := io.step && cu.io.out.csrWen
+  csru.io.in.rs1_data := rs1Data
+  csru.io.in.isEcall  := io.step && cu.io.out.isEcall
+  csru.io.in.isMret   := io.step && cu.io.out.isMret
+  csru.io.in.pc       := pc
+  val csrData = csru.io.out.rdata
 
   /* ========== 写回数据选择 ========== */
   val wbData = MuxCase(
@@ -94,7 +108,8 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
     Seq(
       (cu.io.out.wbSel === WBSel.WB_ALU) -> aluResult,
       (cu.io.out.wbSel === WBSel.WB_MEM) -> memData,
-      (cu.io.out.wbSel === WBSel.WB_PC4) -> snpc
+      (cu.io.out.wbSel === WBSel.WB_PC4) -> snpc,
+      (cu.io.out.wbSel === WBSel.WB_CSR) -> csrData
     )
   )
 
@@ -109,7 +124,9 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
     Seq(
       (cu.io.out.npcOp === NPCOpType.NPC_JAL)           -> aluResult,
       (cu.io.out.npcOp === NPCOpType.NPC_JALR)          -> (aluResult & (~1.U(XLEN.W))),
-      (cu.io.out.npcOp === NPCOpType.NPC_BR && brTaken) -> aluResult
+      (cu.io.out.npcOp === NPCOpType.NPC_BR && brTaken) -> aluResult,
+      (cu.io.out.npcOp === NPCOpType.NPC_ECALL)         -> csru.io.out.mtvec,
+      (cu.io.out.npcOp === NPCOpType.NPC_MRET)          -> csru.io.out.mepc
     )
   )
 
@@ -122,7 +139,7 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   // 只在 step 有效且是 ebreak 指令时触发
   ebreakDpi.io.en := io.step && cu.io.out.isEbreak
   ebreakDpi.io.pc := pc
-  ebreakDpi.io.a0 := rfu.io.out.gpr(10) // $a0 = x10, 作为返回值
+  ebreakDpi.io.a0 := rfu.io.out.commit.gpr(10) // $a0 = x10, 作为返回值
 
   /* ========== Invalid Instruction DPI 调用 ========== */
   // 只在 step 有效且是无效指令时触发
@@ -131,13 +148,12 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   invalidInstDpi.io.inst := inst
 
   /* ========== Commit 输出 (供 difftest) ========== */
-  io.commit.valid  := io.step
-  io.commit.pc     := pc
-  io.commit.dnpc := dnpc
-  io.commit.inst   := inst
-
-  // 输出寄存器堆 (从 RFU 读取所有寄存器)
-  io.commit.gpr := rfu.io.out.gpr
+  io.commit.valid := io.step
+  io.commit.pc    := pc
+  io.commit.dnpc  := dnpc
+  io.commit.inst  := inst
+  io.commit.gpr := rfu.io.out.commit.gpr
+  io.commit.csr := csru.io.out.commit
 }
 
 object NpcCoreTop extends App {

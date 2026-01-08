@@ -8,7 +8,11 @@ import common.HasRegFileParameter
 class RFUOutputBundle extends Bundle with HasCoreParameter with HasRegFileParameter {
   val rs1_v = Output(UInt(XLEN.W))
   val rs2_v = Output(UInt(XLEN.W))
-  val gpr   = Output(Vec(NRReg, UInt(XLEN.W))) // 导出所有寄存器用于 difftest
+  val commit = Output(new RFUCommitBundle)
+}
+
+class RFUCommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter {
+  val gpr = Output(Vec(NRReg, UInt(XLEN.W)))
 }
 
 class RFUInputBundle extends Bundle with HasRegFileParameter with HasCoreParameter {
@@ -40,7 +44,7 @@ class RFU extends Module with HasCoreParameter with HasRegFileParameter {
   when(io.in.wen && (io.in.rd_i =/= 0.U)) { rf(io.in.rd_i) := io.in.wdata }
 
   // 导出所有寄存器用于 difftest
-  io.out.gpr := rf
+  io.out.commit.gpr := rf
 }
 
 object RFU extends App {

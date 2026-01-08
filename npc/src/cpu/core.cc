@@ -17,6 +17,7 @@ extern "C" {
 #include <cpu/decode.h>
 #include <isa.h>
 #include <memory/paddr.h>
+#include "../isa/riscv32/local-include/reg.h"
 }
 
 #include "VNpcCoreTop.h"
@@ -158,12 +159,20 @@ static void sync_gpr_to_cpu() {
   cpu.gpr[31] = top->io_commit_gpr_31;
 }
 
+static void sync_csr_to_cpu() {
+  cpu.csr[MSTATUS] = top->io_commit_csr_mstatus;
+  cpu.csr[MTVEC] = top->io_commit_csr_mtvec;
+  cpu.csr[MEPC] = top->io_commit_csr_mepc;
+  cpu.csr[MCAUSE] = top->io_commit_csr_mcause;
+}
+
 extern "C" bool npc_core_step(Decode *s) {
   top->io_step = 1; top->eval(); // 拉高 step 信号
   read_commit_to_decode(s); // 组合逻辑的求值
   cpu.pc = s->dnpc; //
   tick(); // 更新寄存器
   sync_gpr_to_cpu(); // 读出写入后的寄存器
+  sync_csr_to_cpu(); // 读出写入后的 CSR
   top->io_step = 0; top->eval(); // 拉低 step 信号
   return true;
 }

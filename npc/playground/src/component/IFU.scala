@@ -7,8 +7,8 @@ import blackbox.DpiPmemRead
 
 class IFOutputBundle extends Bundle with HasCoreParameter {
   val inst = Output(UInt(InstLen.W)) //
-  val snpc = Output(UInt(XLEN.W)) // which is pc + 4
-  val pc   = Output(UInt(XLEN.W)) // the pc of the instruction
+  val snpc = Output(UInt(XLEN.W))    // which is pc + 4
+  val pc   = Output(UInt(XLEN.W))    // the pc of the instruction
 }
 
 class IFInputBundle extends Bundle with HasCoreParameter {
@@ -22,13 +22,13 @@ class IFU extends Module with HasCoreParameter {
     val in  = Flipped(new IFInputBundle)
   })
 
-  private val pc_ = RegInit(UInt(XLEN.W), "h8000_0000".U)
+  private val pc_ = RegInit("h8000_0000".U(XLEN.W))
 
   // read from irom
   private val pmemRead = Module(new DpiPmemRead)
-  pmemRead.io.en    := io.in.step
-  pmemRead.io.addr  := pc_
-  pmemRead.io.len   := 4.U
+  pmemRead.io.en   := io.in.step
+  pmemRead.io.addr := pc_
+  pmemRead.io.len  := 4.U
 
   io.out.inst := pmemRead.io.data
   io.out.pc   := pc_
