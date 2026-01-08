@@ -53,10 +53,10 @@ word_t isa_reg_str2val(const char *s, bool *success) {
   }
 
   // csrs
-  if (strcmp(s, "mstatus") == 0) { return cpu.csr[MSTATUS]; }
-  if (strcmp(s, "mtvec") == 0) { return cpu.csr[MTVEC]; }
-  if (strcmp(s, "mepc") == 0) { return cpu.csr[MEPC]; }
-  if (strcmp(s, "mcause") == 0) { return cpu.csr[MCAUSE]; }
+  if (strcmp(s, csrs[MSTATUS]) == 0) { return cpu.csr[MSTATUS]; }
+  if (strcmp(s, csrs[MTVEC]) == 0) { return cpu.csr[MTVEC]; }
+  if (strcmp(s, csrs[MEPC]) == 0) { return cpu.csr[MEPC]; }
+  if (strcmp(s, csrs[MCAUSE]) == 0) { return cpu.csr[MCAUSE]; }
 
   if (success) { *success = false; }
   return 0;
