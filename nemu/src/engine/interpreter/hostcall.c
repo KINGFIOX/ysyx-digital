@@ -32,6 +32,22 @@ void invalid_inst(vaddr_t thispc) {
   temp[0] = inst_fetch(&pc, 4);
   temp[1] = inst_fetch(&pc, 4);
 
+#ifdef CONFIG_ITRACE
+  // 使用 gen_logbuf 进行反汇编
+  char logbuf[128];
+  ISADecodeInfo isa;
+  isa.inst = temp[0]; // 填充指令编码
+  vaddr_t snpc = thispc + 4; // riscv32 指令长度为 4 字节
+  
+  bool gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc, const ISADecodeInfo *isa);
+  bool ret = gen_logbuf(logbuf, sizeof(logbuf), thispc, snpc, &isa);
+  if (ret) {
+    printf("Disassembly: %s\n", logbuf);
+  } else {
+    printf("Disassembly failed for instruction at PC = " FMT_WORD "\n", thispc);
+  }
+#endif
+
   uint8_t *p = (uint8_t *)temp;
   printf("invalid opcode(PC = " FMT_WORD "):\n"
       "\t%02x %02x %02x %02x %02x %02x %02x %02x ...\n"
