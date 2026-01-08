@@ -20,6 +20,8 @@
 #endif
 
 #ifdef CONFIG_MTRACE
+#include <utils/ringbuf.h>
+
 #define MTRACE_BUF_SIZE 16
 
 #define LogMem(format, ...)                                                   \
@@ -33,32 +35,22 @@ typedef struct {
   word_t pc;
 } MtraceItem;
 
-static struct {
-  MtraceItem items[MTRACE_BUF_SIZE];
-  size_t ptr;
-  size_t count;
-} mtrace_buf = {.ptr = 0, .count = 0};
+static RINGBUF_DEFINE(MtraceItem, MTRACE_BUF_SIZE) mtrace_buf = RINGBUF_INIT;
 
 static void mtrace_push(char type, vaddr_t addr, int len, word_t data, word_t pc) {
-  mtrace_buf.items[mtrace_buf.ptr] = (MtraceItem){.addr = addr, .len = len, .data = data, .type = type, .pc = pc};
-  if (mtrace_buf.count < MTRACE_BUF_SIZE) {
-    mtrace_buf.count++;
-  }
-  mtrace_buf.ptr = (mtrace_buf.ptr + 1) % MTRACE_BUF_SIZE;
+  RINGBUF_PUSH(mtrace_buf, MTRACE_BUF_SIZE,
+      ((MtraceItem){.addr = addr, .len = len, .data = data, .type = type, .pc = pc}));
 }
 
 void mtrace_dump(void) {
-  if (mtrace_buf.count == 0) {
+  if (RINGBUF_EMPTY(mtrace_buf)) {
     return;
   }
 
   LogMem("Last %d memory accesses:", MTRACE_BUF_SIZE);
-  const size_t valid = mtrace_buf.count;
-  const size_t start = (mtrace_buf.ptr + MTRACE_BUF_SIZE - valid) % MTRACE_BUF_SIZE;
-
-  for (size_t idx = 0; idx < valid; idx++) {
-    size_t pos = (start + idx) % MTRACE_BUF_SIZE;
-    const MtraceItem *it = &mtrace_buf.items[pos];
+  RINGBUF_FOREACH(mtrace_buf, MTRACE_BUF_SIZE, idx, pos) {
+    (void)idx; // unused
+    const MtraceItem *it = RINGBUF_GET(mtrace_buf, pos);
     LogMem("    %c pc=" FMT_WORD " addr=" FMT_WORD " len=%d data=" FMT_WORD,
         it->type, it->pc, it->addr, it->len, it->data);
   }

@@ -21,6 +21,8 @@
 #endif
 
 #ifdef CONFIG_ETRACE
+#include <utils/ringbuf.h>
+
 #define ETRACE_BUF_SIZE 16
 
 #define LogExc(format, ...)                                                   \
@@ -33,11 +35,7 @@ typedef struct {
   char type; // 'E' exception, 'I' interrupt, 'R' return
 } EtraceItem;
 
-static struct {
-  EtraceItem items[ETRACE_BUF_SIZE];
-  size_t ptr;
-  size_t count;
-} etrace_buf = {.ptr = 0, .count = 0};
+static RINGBUF_DEFINE(EtraceItem, ETRACE_BUF_SIZE) etrace_buf = RINGBUF_INIT;
 
 static const char *get_exception_name(word_t cause) {
   // RISC-V exception codes
@@ -62,25 +60,18 @@ static const char *get_exception_name(word_t cause) {
 }
 
 static void etrace_push(char type, word_t cause, vaddr_t epc, vaddr_t handler) {
-  etrace_buf.items[etrace_buf.ptr] = (EtraceItem){.cause = cause, .epc = epc, .handler = handler, .type = type};
-  if (etrace_buf.count < ETRACE_BUF_SIZE) {
-    etrace_buf.count++;
-  }
-  etrace_buf.ptr = (etrace_buf.ptr + 1) % ETRACE_BUF_SIZE;
+  RINGBUF_PUSH(etrace_buf, ETRACE_BUF_SIZE,
+      ((EtraceItem){.cause = cause, .epc = epc, .handler = handler, .type = type}));
 }
 
 void etrace_dump(void) {
-  if (etrace_buf.count == 0) {
+  if (RINGBUF_EMPTY(etrace_buf)) {
     return;
   }
 
   LogExc("Last %d exceptions/interrupts:", ETRACE_BUF_SIZE);
-  const size_t valid = etrace_buf.count;
-  const size_t start = (etrace_buf.ptr + ETRACE_BUF_SIZE - valid) % ETRACE_BUF_SIZE;
-
-  for (size_t idx = 0; idx < valid; idx++) {
-    size_t pos = (start + idx) % ETRACE_BUF_SIZE;
-    const EtraceItem *it = &etrace_buf.items[pos];
+  RINGBUF_FOREACH(etrace_buf, ETRACE_BUF_SIZE, idx, pos) {
+    const EtraceItem *it = RINGBUF_GET(etrace_buf, pos);
     if (it->type == 'R') {
       LogExc("    %c epc=" FMT_WORD " (return from exception/interrupt)",
           it->type, it->epc);
