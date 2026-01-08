@@ -10,3 +10,6 @@
 [submodule "am-kernels"]
 	path = am-kernels
 	url = git@github.com:KINGFIOX/am-kernels.git
+[submodule "nemu/tools/spike-diff/repo"]
+	path = nemu/tools/spike-diff/repo
+	url = git@github.com:KINGFIOX/riscv-isa-sim.git
