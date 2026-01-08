@@ -109,11 +109,13 @@ int memcmp(const void *a_, const void *b_, size_t size) {
 
 /** If STRING is less than MAXLEN characters in length, returns
    its actual length.  Otherwise, returns MAXLEN. */
+#ifndef __RTTHREAD__
 size_t strnlen(const char *string, size_t maxlen) {
   size_t length;
 
   for (length = 0; string[length] != '\0' && length < maxlen; length++) continue;
   return length;
 }
+#endif
 
 #endif

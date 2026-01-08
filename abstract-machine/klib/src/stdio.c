@@ -142,7 +142,7 @@ static const struct integer_base base_o = {8, "01234567", 0, 3};
 static const struct integer_base base_x = {16, "0123456789abcdef", 'x', 4};
 static const struct integer_base base_X = {16, "0123456789ABCDEF", 'X', 4};
 
-static const char *parse_conversion(const char *format, struct printf_conversion *, va_list *);
+static const char *parse_conversion(const char *format, struct printf_conversion *, va_list);
 static void format_integer(uintmax_t value, bool is_signed, bool negative, const struct integer_base *, const struct printf_conversion *, void (*output)(char, void *), void *aux);
 static void output_dup(char ch, size_t cnt, void (*output)(char, void *), void *aux);
 static void format_string(const char *string, int length, struct printf_conversion *, void (*output)(char, void *), void *aux);
@@ -151,7 +151,7 @@ static void format_string(const char *string, int length, struct printf_conversi
    initializes C appropriately.  Returns the character in FORMAT
    that indicates the conversion (e.g. the `d' in `%d').  Uses
    *ARGS for `*' field widths and precisions. */
-static const char *parse_conversion(const char *format, struct printf_conversion *c, va_list *args) {
+static const char *parse_conversion(const char *format, struct printf_conversion *c, va_list args) {
   /* Parse flag characters. */
   c->flags = 0;
   for (;;) {
@@ -187,7 +187,7 @@ not_a_flag:
   c->width = 0;
   if (*format == '*') {
     format++;
-    c->width = va_arg(*args, int);
+    c->width = va_arg(args, int);
   } else {
     for (; isdigit(*format); format++) c->width = c->width * 10 + *format - '0';
   }
@@ -202,7 +202,7 @@ not_a_flag:
     format++;
     if (*format == '*') {
       format++;
-      c->precision = va_arg(*args, int);
+      c->precision = va_arg(args, int);
     } else {
       c->precision = 0;
       for (; isdigit(*format); format++) c->precision = c->precision * 10 + *format - '0';
@@ -363,7 +363,7 @@ static void __vprintf(const char *format, va_list args, void (*output)(char, voi
     }
 
     /* Parse conversion specifiers. */
-    format = parse_conversion(format, &c, &args);
+    format = parse_conversion(format, &c, args);
 
     /* Do conversion. */
     switch (*format) {
