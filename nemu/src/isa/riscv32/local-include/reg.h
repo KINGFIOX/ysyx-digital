@@ -16,13 +16,19 @@
 #ifndef __RISCV_REG_H__
 #define __RISCV_REG_H__
 
+#include "debug.h"
+#include "isa.h"
 #include <common.h>
 
 enum {
-  MSTATUS = 0x300,
-  MTVEC = 0x305,
-  MEPC = 0x341,
-  MCAUSE = 0x342,
+  MSTATUS = 0x0300,
+  MTVEC = 0x0305,
+  MEPC = 0x0341,
+  MCAUSE = 0x0342,
+  MCYCLE = 0x0B00,
+  MCYCLEH = 0x0B80,
+  MVENDORID = 0x0F11,
+  MARCHID   = 0x0F12,
 };
 
 static inline int check_gpr_idx(int idx) {
@@ -32,12 +38,35 @@ static inline int check_gpr_idx(int idx) {
 #define gpr(idx) (cpu.gpr[check_gpr_idx(idx)])
 
 static inline int check_csr_idx(int idx) {
-  IFDEF(CONFIG_RT_CHECK, assert(
-    idx == MTVEC || idx == MSTATUS || idx == MEPC || idx == MCAUSE)
+  IFDEF(CONFIG_RT_CHECK, Assert(
+    idx == MTVEC
+    || idx == MSTATUS
+    || idx == MEPC
+    || idx == MCAUSE
+    || idx == MVENDORID
+    || idx == MARCHID
+    || idx == MCYCLE
+    || idx == MCYCLEH,
+    "invalid csr index: %d", idx)
   );
   return idx;
 }
-#define csr(idx) (cpu.csr[check_csr_idx(idx)])
+
+static inline word_t csr_read(int idx) {
+  idx &= 0xfff;
+  if (idx == MSTATUS) { return 0x1800; }
+  idx = check_csr_idx(idx);
+  return cpu.csr[idx];
+}
+
+static inline void csr_write(int idx, word_t value) {
+  idx &= 0xfff;
+  if (idx == MSTATUS) { return; } // 只有机器模式
+  if (idx == MVENDORID || idx == MARCHID) { return; } // 只读 csr
+  idx = check_csr_idx(idx);
+  cpu.csr[idx] = value;
+}
+
 
 static inline const char *reg_name(int idx) {
   extern const char *regs[];

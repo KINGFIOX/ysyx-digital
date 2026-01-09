@@ -90,26 +90,26 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
     TODO();
   } else { // exception
 #ifdef CONFIG_ETRACE
-    etrace_push('E', NO, epc, csr(MTVEC));
+    etrace_push('E', NO, epc, csr_read(MTVEC));
 #endif
   }
 #endif
   /* Trigger an interrupt/exception with ``NO''.
    * Then return the address of the interrupt/exception vector.
    */
-  csr(MCAUSE) = NO;
-  csr(MEPC) = epc;
-  return csr(MTVEC);
+  csr_write(MCAUSE, NO);
+  csr_write(MEPC, epc);
+  return csr_read(MTVEC);
 }
 
 word_t isa_return_intr(void) {
-  word_t mepc = csr(MEPC);
+  word_t mepc = csr_read(MEPC);
 #ifdef CONFIG_TRACE
-  if ((sword_t)csr(MCAUSE) < 0) { // interrupt
+  if ((sword_t)csr_read(MCAUSE) < 0) { // interrupt
     TODO();
   } else { // exception
 #ifdef CONFIG_ETRACE
-    etrace_push('R', csr(MCAUSE), mepc, 0);
+    etrace_push('R', csr_read(MCAUSE), mepc, 0);
 #endif
   }
 #endif

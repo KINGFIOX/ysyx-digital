@@ -22,6 +22,7 @@
 #include <ftrace.h>
 #include <locale.h>
 #include <memory/vaddr.h>
+#include "../isa/riscv32/local-include/reg.h"
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -30,7 +31,13 @@
  */
 #define MAX_INST_TO_PRINT 10
 
-CPU_state cpu = {};
+CPU_state cpu = {
+  .csr = {
+    [MSTATUS] = 0x1800,
+    [MVENDORID] = 0x79737978,
+    [MARCHID] = 26010003,
+  },
+};
 uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
