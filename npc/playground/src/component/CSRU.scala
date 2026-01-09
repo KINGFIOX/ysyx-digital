@@ -71,8 +71,8 @@ class CSRU extends Module with HasCoreParameter with HasCSRParameter {
     (MCAUSE.U,    mcause),
     (MCYCLE.U,    mcycle(31, 0)),
     (MCYCLEH.U,   mcycle(63, 32)),
-    (0x0F11.U,    mvendorid), // mvendorid 地址
-    (0x0F12.U,    marchid)    // marchid 地址
+    (MVENDORID.U,    mvendorid), // mvendorid 地址
+    (MARCHID.U,    marchid)    // marchid 地址
   )
 
   // ==================== 读取 CSR ====================

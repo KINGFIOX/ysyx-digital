@@ -13,7 +13,6 @@
  * See the Mulan PSL v2 for more details.
  ***************************************************************************************/
 
-#include "../local-include/reg.h"
 #include "common.h"
 #include <isa.h>
 
@@ -56,9 +55,8 @@ static const char *get_exception_name(word_t cause) {
   }
 }
 
-static void etrace_push(char type, word_t cause, vaddr_t epc, vaddr_t handler) {
-  RINGBUF_PUSH(etrace_buf, ETRACE_BUF_SIZE,
-      ((EtraceItem){.cause = cause, .epc = epc, .handler = handler, .type = type}));
+void etrace_push(char type, word_t cause, vaddr_t epc, vaddr_t handler) {
+  RINGBUF_PUSH(etrace_buf, ETRACE_BUF_SIZE, ((EtraceItem){.cause = cause, .epc = epc, .handler = handler, .type = type}));
 }
 
 void etrace_dump(void) {
@@ -80,38 +78,5 @@ void etrace_dump(void) {
   }
 }
 #endif
-
-word_t isa_raise_intr(word_t NO, vaddr_t epc) {
-#ifdef CONFIG_TRACE
-  if ((sword_t)NO < 0) { // interrupt
-    TODO();
-  } else { // exception
-#ifdef CONFIG_ETRACE
-    etrace_push('E', NO, epc, csr(MTVEC));
-#endif
-  }
-#endif
-  /* Trigger an interrupt/exception with ``NO''.
-   * Then return the address of the interrupt/exception vector.
-   */
-  csr(MCAUSE) = NO;
-  csr(MEPC) = epc;
-  return csr(MTVEC);
-}
-
-word_t isa_return_intr(void) {
-  word_t mepc = csr(MEPC);
-#ifdef CONFIG_TRACE
-  if ((sword_t)csr(MCAUSE) < 0) { // interrupt
-    TODO();
-  } else { // exception
-#ifdef CONFIG_ETRACE
-    etrace_push('R', csr(MCAUSE), mepc, 0);
-#endif
-  }
-#endif
-  // TODO: mstatus
-  return mepc;
-}
 
 word_t isa_query_intr() { return INTR_EMPTY; }

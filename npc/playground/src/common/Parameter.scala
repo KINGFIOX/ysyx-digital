@@ -20,12 +20,14 @@ trait HasCSRParameter {
   val NRCSR     = 0x1000
   val NRCSRbits = log2Up(NRCSR)
 
-  val MSTATUS = 0x300
-  val MTVEC   = 0x305
-  val MEPC    = 0x341
-  val MCAUSE  = 0x342
-  val MCYCLE  = 0xB00
-  val MCYCLEH = 0xB80
+  val MSTATUS = 0x0300 // 防止被意外符号拓展(scala只有signed int)
+  val MTVEC   = 0x0305
+  val MEPC    = 0x0341
+  val MCAUSE  = 0x0342
+  val MCYCLE  = 0x0B00
+  val MCYCLEH = 0x0B80
+  val MVENDORID = 0x0F11
+  val MARCHID   = 0x0F12
 }
 
 trait HasDRAMParameter {

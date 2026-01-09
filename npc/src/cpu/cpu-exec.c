@@ -20,8 +20,9 @@
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
 #include <device/map.h>
-#include <ftrace.h>
 #include <memory/vaddr.h>
+#include <ftrace.h>
+#include "../isa/riscv32/local-include/reg.h" // etrace
 
 #ifdef CONFIG_ITRACE
 #include <utils/ringbuf.h>
@@ -128,6 +129,104 @@ static void dump_iringbuf(void) {
 
 static bool exec_once(Decode *s) { return npc_core_step(s); }
 
+// ===============================  decode  ===============================
+
+enum {
+  TYPE_I, TYPE_U, TYPE_S, TYPE_B, TYPE_J, TYPE_R,
+  TYPE_N, // none
+};
+
+#define immI() do { *imm = SEXT(BITS(i, 31, 20), 12); } while(0)
+#define immU() do { *imm = SEXT(BITS(i, 31, 12), 20) << 12; } while(0)
+#define immS() do { *imm = (SEXT(BITS(i, 31, 25), 7) << 5) | BITS(i, 11, 7); } while(0)
+#define immB() do { *imm = SEXT((BITS(i, 31, 31) << 12) | (BITS(i, 7, 7) << 11) | (BITS(i, 30, 25) << 5)  | (BITS(i, 11, 8) << 1), 13); } while(0)
+#define immJ() do { *imm = SEXT((BITS(i, 31, 31) << 20) | (BITS(i, 19, 12) << 12) | (BITS(i, 20, 20) << 11) | (BITS(i, 30, 21) << 1), 21); } while(0)
+
+static void decode_operand(const Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
+  uint32_t i = s->isa.inst;
+  *rd     = BITS(i, 11, 7);
+  switch (type) {
+    case TYPE_I: immI(); break;
+    case TYPE_U: immU(); break;
+    case TYPE_S: immS(); break;
+    case TYPE_B: immB(); break;
+    case TYPE_J: immJ(); break;
+    case TYPE_R:         break;
+    case TYPE_N:         break;
+    default: panic("unsupported type = %d", type);
+  }
+}
+
+#define INSTPAT_INST(s) ((s)->isa.inst)
+#define INSTPAT_MATCH(s, name, type, ... /* execute body */ ) { \
+  int rd = 0; \
+  word_t src1 = 0, src2 = 0, imm = 0; \
+  decode_operand(s, &rd, &src1, &src2, &imm, concat(TYPE_, type)); \
+  __VA_ARGS__ ; \
+}
+
+// ===============================  ftrace  ===============================
+
+#ifdef CONFIG_FTRACE
+
+static void ftrace_log(const Decode *s) {
+  INSTPAT_START();
+  INSTPAT("??????? ????? ????? ????? ????? 11011 11", jal   , J, { 
+    if (rd == 1) {
+      ftrace_call(s->pc, s->dnpc);
+    }
+  });
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, {
+    int rs1 = BITS(s->isa.inst, 19, 15);
+    if (rd == 0 && rs1 == 1 && imm == 0) { // `ret` aka. `jalr zero, 0(ra)`
+      ftrace_ret(s->pc); // 函数返回
+    } else if (rd != 0) {
+      ftrace_call(s->pc, s->dnpc); // 函数指针调用
+    }
+  });
+  INSTPAT_END();
+}
+
+#endif // CONFIG_FTRACE
+
+// ===============================  etrace  ===============================
+
+#ifdef CONFIG_ETRACE
+
+void etrace_push(char type, word_t cause, vaddr_t epc, vaddr_t handler);
+
+static void etrace_log(const Decode *s) {
+  INSTPAT_START();
+  INSTPAT("0000000 00000 00000 000 00000 11100 11", ecall  , I, {
+    etrace_push('E', 11, cpu.csr[MEPC], cpu.csr[MTVEC]);
+  });
+  INSTPAT("0011000 00010 00000 000 00000 11100 11", mret   , R, {
+    etrace_push('R', csr(MCAUSE), cpu.csr[MEPC], 0);
+  });
+  INSTPAT_END();
+}
+
+#endif // CONFIG_ETRACE
+
+// ===============================  skip some csr  ===============================
+
+#ifdef CONFIG_DIFFTEST
+
+static void skip_csr_difftest(const Decode *s) {
+  INSTPAT_START();
+  INSTPAT("??????? ????? ????? 001 ????? 11100 11", csrrw  , I, {
+    imm &= 0xfff;
+    if (imm == MCYCLE || imm == MCYCLEH) { difftest_skip_ref(); } });
+  INSTPAT("??????? ????? ????? 010 ????? 11100 11", csrrs  , I, {
+    imm &= 0xfff;
+    if (imm == MCYCLE || imm == MCYCLEH) { difftest_skip_ref(); } });
+  INSTPAT_END();
+}
+
+#endif // CONFIG_DIFFTEST
+
+// ===============================  skip some csr  ===============================
+
 static void execute(uint64_t n) {
   Decode s;
 
@@ -144,10 +243,21 @@ static void execute(uint64_t n) {
     iringbuf_push(s.pc, s.snpc, &s.isa);
 #endif
 
+#ifdef CONFIG_FTRACE
+  ftrace_log(&s);
+#endif
+
+#ifdef CONFIG_ETRACE
+  etrace_log(&s);
+#endif
+
+#ifdef CONFIG_DIFFTEST
+  skip_csr_difftest(&s);
+#endif
+
     g_nr_guest_inst++;
     trace_and_difftest(&s, cpu.pc);
-    if (npc_state.state != NPC_RUNNING)
-      break;
+    if (npc_state.state != NPC_RUNNING) break;
     IFDEF(CONFIG_DEVICE, device_update());
   }
 }

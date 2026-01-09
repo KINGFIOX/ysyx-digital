@@ -19,10 +19,14 @@
 #include <common.h>
 
 enum {
-  MSTATUS = 0x300,
-  MTVEC = 0x305,
-  MEPC = 0x341,
+  MSTATUS = 0x0300,
+  MTVEC = 0x0305,
+  MEPC = 0x0341,
   MCAUSE = 0x342,
+  MCYCLE  = 0x0B00, // skip
+  MCYCLEH = 0x0B80, // skip
+  MVENDORID = 0x0F11,
+  MARCHID   = 0x0F12,
 };
 static inline int check_csr_idx(int idx) {
   IFDEF(CONFIG_RT_CHECK, assert(
