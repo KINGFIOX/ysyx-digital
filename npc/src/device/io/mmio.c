@@ -16,6 +16,9 @@
 #include <device/map.h>
 #include <isa.h>
 #include <memory/paddr.h>
+#ifdef CONFIG_DTRACE
+#include <utils/ringbuf.h>
+#endif
 
 // mmio
 IOMap maps[NR_MAP] = {};
@@ -78,35 +81,22 @@ typedef struct {
   word_t pc;
 } DtraceItem;
 
-static struct {
-  DtraceItem items[DTRACE_BUF_SIZE];
-  size_t ptr;
-  size_t count;
-} dtrace_buf = {.ptr = 0, .count = 0};
+static RINGBUF_DEFINE(DtraceItem, DTRACE_BUF_SIZE) dtrace_buf = RINGBUF_INIT;
 
 static void dtrace_push(const IOMap *map, word_t data, int len, char type,
                         word_t pc) {
-  dtrace_buf.items[dtrace_buf.ptr] = (DtraceItem){
-      .map = map, .data = data, .len = len, .type = type, .pc = pc};
-  if (dtrace_buf.count < DTRACE_BUF_SIZE) {
-    dtrace_buf.count++;
-  }
-  dtrace_buf.ptr = (dtrace_buf.ptr + 1) % DTRACE_BUF_SIZE;
+  RINGBUF_PUSH(dtrace_buf, DTRACE_BUF_SIZE,
+      ((DtraceItem){.map = map, .data = data, .len = len, .type = type, .pc = pc}));
 }
 
 void dtrace_dump(void) {
-  if (dtrace_buf.count == 0) {
+  if (RINGBUF_EMPTY(dtrace_buf)) {
     return;
   }
 
   LogDev("Last %d device accesses:", DTRACE_BUF_SIZE);
-  const size_t valid = dtrace_buf.count;
-  const size_t start =
-      (dtrace_buf.ptr + DTRACE_BUF_SIZE - valid) % DTRACE_BUF_SIZE;
-
-  for (size_t idx = 0; idx < valid; idx++) {
-    size_t pos = (start + idx) % DTRACE_BUF_SIZE;
-    const DtraceItem *it = &dtrace_buf.items[pos];
+  RINGBUF_FOREACH(dtrace_buf, DTRACE_BUF_SIZE, idx, pos) {
+    const DtraceItem *it = RINGBUF_GET(dtrace_buf, pos);
     switch (it->len) {
     case 1:
       LogDev("    %c pc=" FMT_WORD " device=%s"
@@ -148,7 +138,7 @@ void mmio_write(paddr_t addr, int len, word_t data) {
   IOMap *map = fetch_mmio_map(addr);
 
 #ifdef CONFIG_DTRACE
-  dtrace_push(map, data, len, 'R', cpu.pc);
+  dtrace_push(map, data, len, 'W', cpu.pc);
 #endif
 
   map_write(addr, len, data, map);

@@ -47,8 +47,16 @@ paddr_t isa_mmu_translate(vaddr_t vaddr, int len, int type);
 
 // interrupt/exception
 vaddr_t isa_raise_intr(word_t NO, vaddr_t epc);
+word_t isa_return_intr(void);
 #define INTR_EMPTY ((word_t) - 1)
 word_t isa_query_intr();
+
+// etrace
+#ifdef CONFIG_ETRACE
+void etrace_dump(void);
+#else
+static inline void etrace_dump(void) {}
+#endif
 
 // difftest
 bool isa_difftest_checkregs(const CPU_state *ref_r, vaddr_t pc);

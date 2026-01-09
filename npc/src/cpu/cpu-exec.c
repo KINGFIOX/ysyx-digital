@@ -23,6 +23,10 @@
 #include <ftrace.h>
 #include <memory/vaddr.h>
 
+#ifdef CONFIG_ITRACE
+#include <utils/ringbuf.h>
+#endif
+
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
  * This is useful when you use the `si' command.
@@ -92,31 +96,27 @@ typedef struct {
   ISADecodeInfo isa;
 } ItraceItem;
 
-static struct {
-  ItraceItem items[CONFIG_IRINGBUF_SIZE];
-  size_t ptr;
-  size_t count;
-} g_iringbuf = {.ptr = 0, .count = 0};
+static RINGBUF_DEFINE(ItraceItem, CONFIG_IRINGBUF_SIZE) g_iringbuf = RINGBUF_INIT;
 
 #define LogInst(format, ...)                                                   \
   _Log(ANSI_FMT(format, ANSI_FG_BLUE) "\n", ##__VA_ARGS__)
 
+static void iringbuf_push(vaddr_t pc, vaddr_t snpc, const ISADecodeInfo *isa) {
+  RINGBUF_PUSH(g_iringbuf, CONFIG_IRINGBUF_SIZE,
+      ((ItraceItem){.pc = pc, .snpc = snpc, .isa = *isa}));
+}
+
 static void dump_iringbuf(void) {
-  if (g_iringbuf.count == 0)
+  if (RINGBUF_EMPTY(g_iringbuf))
     return;
 
   Log("Last %d instructions:", CONFIG_IRINGBUF_SIZE);
   char logbuf[128];
-  const size_t valid = g_iringbuf.count;
-  const size_t start =
-      (g_iringbuf.ptr + CONFIG_IRINGBUF_SIZE - valid) % CONFIG_IRINGBUF_SIZE;
+  RINGBUF_FOREACH(g_iringbuf, CONFIG_IRINGBUF_SIZE, idx, pos) {
+    const ItraceItem *it = RINGBUF_GET(g_iringbuf, pos);
+    gen_logbuf(logbuf, sizeof(logbuf), it->pc, it->snpc, &it->isa);
 
-  for (size_t idx = 0; idx < valid; idx++) {
-    size_t pos = (start + idx) % CONFIG_IRINGBUF_SIZE;
-    gen_logbuf(logbuf, sizeof(logbuf), g_iringbuf.items[pos].pc,
-               g_iringbuf.items[pos].snpc, &g_iringbuf.items[pos].isa);
-
-    if (idx == valid - 1) {
+    if (RINGBUF_IS_LAST(g_iringbuf, idx)) {
       LogInst("--> %s", logbuf);
     } else {
       LogInst("    %s", logbuf);
@@ -141,13 +141,7 @@ static void execute(uint64_t n) {
     // 生成日志(完整)
     gen_logbuf(s.logbuf, sizeof(s.logbuf), s.pc, s.snpc, &s.isa);
     // 最近的 CONFIG_IRINGBUF_SIZE 条指令
-    g_iringbuf.items[g_iringbuf.ptr].isa = s.isa;
-    g_iringbuf.items[g_iringbuf.ptr].pc = s.pc;
-    g_iringbuf.items[g_iringbuf.ptr].snpc = s.snpc;
-    if (g_iringbuf.count < CONFIG_IRINGBUF_SIZE) {
-      g_iringbuf.count++;
-    }
-    g_iringbuf.ptr = (g_iringbuf.ptr + 1) % CONFIG_IRINGBUF_SIZE; // loop back
+    iringbuf_push(s.pc, s.snpc, &s.isa);
 #endif
 
     g_nr_guest_inst++;
@@ -179,6 +173,9 @@ static void dump_trace_msg(void) {
 #endif
 #ifdef CONFIG_DTRACE
   dtrace_dump();
+#endif
+#ifdef CONFIG_ETRACE
+  etrace_dump();
 #endif
 #ifdef CONFIG_FTRACE
   ftrace_dump();
