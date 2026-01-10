@@ -180,7 +180,7 @@ config WATCHPOINT
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"
-  default n
+  default y
   help
     Enable differential testing with a reference design.
     Note that this will significantly reduce the performance of NEMU.

@@ -1,3 +1,4 @@
+#include "arch/riscv.h"
 #include <am.h>
 #include <riscv/riscv.h>
 #include <klib.h>
@@ -60,7 +61,7 @@ typedef void (*entry_t)(void *);
 
 Context *kcontext(Area kstack, entry_t entry, void *arg) {
   Context *c = (Context*)((uintptr_t)kstack.end - sizeof(Context)); // 栈底存放 Context
-  for (int i = 0; i < 32; i++) { // init all register with 0
+  for (int i = 0; i < NR_REGS; i++) { // init all register with 0
     c->gpr[i] = 0;
   }
   c->mepc = (uintptr_t)entry; // 通过 mret 跳转

@@ -335,6 +335,15 @@ static void format_string(const char *string, int length, struct printf_conversi
   if (c->width > length && (c->flags & MINUS) != 0) output_dup(' ', c->width - length, output, aux);
 }
 
+/** If STRING is less than MAXLEN characters in length, returns
+   its actual length.  Otherwise, returns MAXLEN. */
+static size_t strnlen(const char *string, size_t maxlen) {
+  size_t length;
+
+  for (length = 0; string[length] != '\0' && length < maxlen; length++) continue;
+  return length;
+}
+
 /** Wrapper for __vprintf() that converts varargs into a
    va_list. */
 static void __printf(const char *format, void (*output)(char, void *), void *aux, ...) {

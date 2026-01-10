@@ -1,6 +1,8 @@
 #ifndef ARCH_H__
 #define ARCH_H__
 
+#include <stdint.h>
+
 #define NR_REGS 32
 
 struct Context {
