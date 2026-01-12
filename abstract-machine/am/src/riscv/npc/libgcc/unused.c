@@ -1,5 +1,2 @@
-#include <klib-macros.h>
-#include <am.h>
-
-double __muldf3 (double a, double b) { panic("Not implement"); }
-long __fixdfdi (double a) { panic("Not implement"); }
+// Soft-float functions are now implemented in klib/src/soft-fp.c
+// This file is kept empty to avoid breaking the build system
