@@ -35,5 +35,8 @@ out/
 test_run_dir/
 !/mill
 
+# metal
+.metals
+
 # markdown
 !BUG_REPORT_DIFFTEST.md

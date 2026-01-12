@@ -14,3 +14,9 @@
 !init.sh
 !/FE/*
 !/D/*
+
+# Nix Flake
+!flake.nix
+!flake.lock
+!.envrc
+.direnv/

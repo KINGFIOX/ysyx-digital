@@ -6,8 +6,8 @@ import common.HasCoreParameter
 import common.HasRegFileParameter
 
 class RFUOutputBundle extends Bundle with HasCoreParameter with HasRegFileParameter {
-  val rs1_v = Output(UInt(XLEN.W))
-  val rs2_v = Output(UInt(XLEN.W))
+  val rs1_v  = Output(UInt(XLEN.W))
+  val rs2_v  = Output(UInt(XLEN.W))
   val commit = Output(new RFUCommitBundle)
 }
 

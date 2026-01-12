@@ -38,27 +38,27 @@ object CSROpType extends ChiselEnum {
 /** CU 输出的控制信号 */
 class CUOutputBundle extends Bundle with HasRegFileParameter {
   // ALU 控制
-  val aluOp   = Output(ALUOpType())
-  val aluSel1  = Output(ALUOp1Sel())
-  val aluSel2  = Output(ALUOp2Sel())
+  val aluOp       = Output(ALUOpType())
+  val aluSel1     = Output(ALUOp1Sel())
+  val aluSel2     = Output(ALUOp2Sel())
   // 立即数类型
-  val immType = Output(ImmType())
+  val immType     = Output(ImmType())
   // 内存操作
-  val memOp   = Output(MemUOpType())
-  val memEn   = Output(Bool()) // 内存使能
+  val memOp       = Output(MemUOpType())
+  val memEn       = Output(Bool()) // 内存使能
   // 写回控制
-  val wbSel   = Output(WBSel())
-  val rfWen   = Output(Bool()) // 寄存器写使能
+  val wbSel       = Output(WBSel())
+  val rfWen       = Output(Bool()) // 寄存器写使能
   // 分支控制
-  val bruOp   = Output(BRUOpType())
-  val npcOp   = Output(NPCOpType())
+  val bruOp       = Output(BRUOpType())
+  val npcOp       = Output(NPCOpType())
   // CSR 控制
-  val csrOp   = Output(CSROpType())
-  val csrWen  = Output(Bool()) // CSR 写使能
+  val csrOp       = Output(CSROpType())
+  val csrWen      = Output(Bool()) // CSR 写使能
   // 特殊指令
-  val isEbreak = Output(Bool())
-  val isEcall  = Output(Bool())
-  val isMret   = Output(Bool())
+  val isEbreak    = Output(Bool())
+  val isEcall     = Output(Bool())
+  val isMret      = Output(Bool())
   // 无效指令
   val invalidInst = Output(Bool())
 }
@@ -77,31 +77,30 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
 
   /* ---------- 默认值 ---------- */
   io.out.aluOp   := DontCare
-  io.out.aluSel1  := DontCare
-  io.out.aluSel2  := DontCare
+  io.out.aluSel1 := DontCare
+  io.out.aluSel2 := DontCare
   io.out.immType := DontCare
   io.out.memOp   := DontCare
   io.out.wbSel   := DontCare
   io.out.bruOp   := DontCare
   io.out.csrOp   := CSROpType.CSR_NOP
 
-  io.out.memEn   := false.B         // 禁止写入, 状态不变
-  io.out.rfWen   := false.B
-  io.out.csrWen  := false.B
-  io.out.npcOp   := NPCOpType.NPC_4 // 默认 pc + 4
-  io.out.isEbreak := false.B
-  io.out.isEcall  := false.B
-  io.out.isMret   := false.B
+  io.out.memEn       := false.B         // 禁止写入, 状态不变
+  io.out.rfWen       := false.B
+  io.out.csrWen      := false.B
+  io.out.npcOp       := NPCOpType.NPC_4 // 默认 pc + 4
+  io.out.isEbreak    := false.B
+  io.out.isEcall     := false.B
+  io.out.isMret      := false.B
   io.out.invalidInst := true.B
-
 
   /* ---------- R-type: add rd, rs1, rs2 ---------- */
   private def rInst(op: ALUOpType.Type): Unit /*无返回值*/ = {
-    io.out.aluOp  := op
-    io.out.aluSel1 := ALUOp1Sel.OP1_RS1
-    io.out.aluSel2 := ALUOp2Sel.OP2_RS2
-    io.out.wbSel  := WBSel.WB_ALU
-    io.out.rfWen  := true.B
+    io.out.aluOp       := op
+    io.out.aluSel1     := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2     := ALUOp2Sel.OP2_RS2
+    io.out.wbSel       := WBSel.WB_ALU
+    io.out.rfWen       := true.B
     io.out.invalidInst := false.B
   }
   when(inst === ADD) { rInst(ALUOpType.alu_ADD) }
@@ -117,12 +116,12 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
 
   /* ---------- I-type: addi rd, rs1, imm ---------- */
   private def iInst(op: ALUOpType.Type): Unit /*无返回值*/ = {
-    io.out.aluOp   := op
-    io.out.aluSel1  := ALUOp1Sel.OP1_RS1
-    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
-    io.out.immType := ImmType.IMM_I
-    io.out.wbSel   := WBSel.WB_ALU
-    io.out.rfWen   := true.B
+    io.out.aluOp       := op
+    io.out.aluSel1     := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.immType     := ImmType.IMM_I
+    io.out.wbSel       := WBSel.WB_ALU
+    io.out.rfWen       := true.B
     io.out.invalidInst := false.B
   }
   when(inst === ADDI) { iInst(ALUOpType.alu_ADD) }
@@ -136,15 +135,15 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   when(inst === SLTIU) { iInst(ALUOpType.alu_SLTU) }
 
   /* ---------- Load: lw rd, offset(rs1) ---------- */
-  private def lInst(op: MemUOpType.Type) : Unit /*无返回值*/ = {
-    io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluSel1  := ALUOp1Sel.OP1_RS1
-    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
-    io.out.immType := ImmType.IMM_I
-    io.out.memOp   := op
-    io.out.memEn   := true.B
-    io.out.wbSel   := WBSel.WB_MEM
-    io.out.rfWen   := true.B
+  private def lInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
+    io.out.aluOp       := ALUOpType.alu_ADD
+    io.out.aluSel1     := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.immType     := ImmType.IMM_I
+    io.out.memOp       := op
+    io.out.memEn       := true.B
+    io.out.wbSel       := WBSel.WB_MEM
+    io.out.rfWen       := true.B
     io.out.invalidInst := false.B
   }
   when(inst === LB) { lInst(MemUOpType.mem_LB) }
@@ -154,13 +153,13 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   when(inst === LHU) { lInst(MemUOpType.mem_LHU) }
 
   /* ---------- Store: sw rs2, offset(rs1) ---------- */
-  private def sInst(op: MemUOpType.Type) : Unit /*无返回值*/ = {
-    io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluSel1  := ALUOp1Sel.OP1_RS1
-    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
-    io.out.immType := ImmType.IMM_S
-    io.out.memOp   := op
-    io.out.memEn   := true.B
+  private def sInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
+    io.out.aluOp       := ALUOpType.alu_ADD
+    io.out.aluSel1     := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.immType     := ImmType.IMM_S
+    io.out.memOp       := op
+    io.out.memEn       := true.B
     io.out.invalidInst := false.B
   }
   when(inst === SB) { sInst(MemUOpType.mem_SB) }
@@ -168,13 +167,13 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   when(inst === SW) { sInst(MemUOpType.mem_SW) }
 
   /* ---------- Branch: beq rs1, rs2, offset ---------- */
-  private def bInst(op: BRUOpType.Type) : Unit /*无返回值*/ = {
-    io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluSel1  := ALUOp1Sel.OP1_PC
-    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
-    io.out.bruOp   := op
-    io.out.immType := ImmType.IMM_B
-    io.out.npcOp   := NPCOpType.NPC_BR
+  private def bInst(op: BRUOpType.Type): Unit /*无返回值*/ = {
+    io.out.aluOp       := ALUOpType.alu_ADD
+    io.out.aluSel1     := ALUOp1Sel.OP1_PC
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.bruOp       := op
+    io.out.immType     := ImmType.IMM_B
+    io.out.npcOp       := NPCOpType.NPC_BR
     io.out.invalidInst := false.B
   }
   when(inst === BEQ) { bInst(BRUOpType.bru_BEQ) }
@@ -186,86 +185,86 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
 
   /* ---------- JAL: jal rd, offset ---------- */
   when(inst === JAL) {
-    io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluSel1  := ALUOp1Sel.OP1_PC
-    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
-    io.out.immType := ImmType.IMM_J
-    io.out.npcOp   := NPCOpType.NPC_JAL
-    io.out.wbSel   := WBSel.WB_PC4
-    io.out.rfWen   := true.B
+    io.out.aluOp       := ALUOpType.alu_ADD
+    io.out.aluSel1     := ALUOp1Sel.OP1_PC
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.immType     := ImmType.IMM_J
+    io.out.npcOp       := NPCOpType.NPC_JAL
+    io.out.wbSel       := WBSel.WB_PC4
+    io.out.rfWen       := true.B
     io.out.invalidInst := false.B
   }
 
   /* ---------- JALR: jalr rd, rs1, offset ---------- */
   when(inst === JALR) {
-    io.out.aluOp   := ALUOpType.alu_ADD // ALU 计算 rs1 + imm
-    io.out.aluSel1  := ALUOp1Sel.OP1_RS1
-    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
-    io.out.immType := ImmType.IMM_I
-    io.out.npcOp   := NPCOpType.NPC_JALR
-    io.out.wbSel   := WBSel.WB_PC4
-    io.out.rfWen   := true.B
+    io.out.aluOp       := ALUOpType.alu_ADD // ALU 计算 rs1 + imm
+    io.out.aluSel1     := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.immType     := ImmType.IMM_I
+    io.out.npcOp       := NPCOpType.NPC_JALR
+    io.out.wbSel       := WBSel.WB_PC4
+    io.out.rfWen       := true.B
     io.out.invalidInst := false.B
   }
 
   /* ---------- LUI: lui rd, imm ---------- */
   when(inst === LUI) {
-    io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluSel1  := ALUOp1Sel.OP1_ZERO
-    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
-    io.out.immType := ImmType.IMM_U
-    io.out.wbSel   := WBSel.WB_ALU
-    io.out.rfWen   := true.B
+    io.out.aluOp       := ALUOpType.alu_ADD
+    io.out.aluSel1     := ALUOp1Sel.OP1_ZERO
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.immType     := ImmType.IMM_U
+    io.out.wbSel       := WBSel.WB_ALU
+    io.out.rfWen       := true.B
     io.out.invalidInst := false.B
   }
 
   /* ---------- AUIPC: auipc rd, imm ---------- */
   when(inst === AUIPC) {
-    io.out.aluOp   := ALUOpType.alu_ADD
-    io.out.aluSel1  := ALUOp1Sel.OP1_PC
-    io.out.aluSel2  := ALUOp2Sel.OP2_IMM
-    io.out.immType := ImmType.IMM_U
-    io.out.wbSel   := WBSel.WB_ALU
-    io.out.rfWen   := true.B
+    io.out.aluOp       := ALUOpType.alu_ADD
+    io.out.aluSel1     := ALUOp1Sel.OP1_PC
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.immType     := ImmType.IMM_U
+    io.out.wbSel       := WBSel.WB_ALU
+    io.out.rfWen       := true.B
     io.out.invalidInst := false.B
   }
 
   /* ---------- EBREAK: ebreak ---------- */
   when(inst === EBREAK) {
-    io.out.isEbreak := true.B
+    io.out.isEbreak    := true.B
     io.out.invalidInst := false.B
   }
 
   /* ---------- CSR 指令 ---------- */
   // CSRRW: t = CSRs[csr]; CSRs[csr] = rs1; rd = t
   when(inst === CSRRW) {
-    io.out.csrOp   := CSROpType.CSR_RW
-    io.out.csrWen  := true.B
-    io.out.wbSel   := WBSel.WB_CSR
-    io.out.rfWen   := true.B
+    io.out.csrOp       := CSROpType.CSR_RW
+    io.out.csrWen      := true.B
+    io.out.wbSel       := WBSel.WB_CSR
+    io.out.rfWen       := true.B
     io.out.invalidInst := false.B
   }
 
   // CSRRS: t = CSRs[csr]; CSRs[csr] = t | rs1; rd = t
   when(inst === CSRRS) {
-    io.out.csrOp   := CSROpType.CSR_RS
-    io.out.csrWen  := true.B
-    io.out.wbSel   := WBSel.WB_CSR
-    io.out.rfWen   := true.B
+    io.out.csrOp       := CSROpType.CSR_RS
+    io.out.csrWen      := true.B
+    io.out.wbSel       := WBSel.WB_CSR
+    io.out.rfWen       := true.B
     io.out.invalidInst := false.B
   }
 
   /* ---------- ECALL: 触发环境调用异常 ---------- */
   when(inst === ECALL) {
-    io.out.isEcall := true.B
-    io.out.npcOp   := NPCOpType.NPC_ECALL
+    io.out.isEcall     := true.B
+    io.out.npcOp       := NPCOpType.NPC_ECALL
     io.out.invalidInst := false.B
   }
 
   /* ---------- MRET: 从异常返回 ---------- */
   when(inst === MRET) {
-    io.out.isMret := true.B
-    io.out.npcOp  := NPCOpType.NPC_MRET
+    io.out.isMret      := true.B
+    io.out.npcOp       := NPCOpType.NPC_MRET
     io.out.invalidInst := false.B
   }
 

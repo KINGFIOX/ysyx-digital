@@ -3,19 +3,19 @@ package npc
 import chisel3._
 import chisel3.util._
 
-import common.{HasCoreParameter, HasRegFileParameter, HasCSRParameter}
+import common.{HasCSRParameter, HasCoreParameter, HasRegFileParameter}
 import component._
 import blackbox.{DpiEbreak, DpiInvalidInst}
 
 /** 用来给 Verilator 暴露提交信息, 便于在 C++ 侧采样做差分测试 */
 class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter with HasCSRParameter {
-  val valid  = Output(Bool())
-  val pc     = Output(UInt(XLEN.W))
-  val dnpc   = Output(UInt(XLEN.W))
-  val inst   = Output(UInt(InstLen.W))
-  val gpr    = Output(Vec(NRReg, UInt(XLEN.W)))
+  val valid = Output(Bool())
+  val pc    = Output(UInt(XLEN.W))
+  val dnpc  = Output(UInt(XLEN.W))
+  val inst  = Output(UInt(InstLen.W))
+  val gpr   = Output(Vec(NRReg, UInt(XLEN.W)))
   // CSR 提交信息
-  val csr    = Output(new CSRUCommitBundle)
+  val csr   = Output(new CSRUCommitBundle)
 }
 
 class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
@@ -25,15 +25,15 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   })
 
   /* ========== 实例化各模块 ========== */
-  private val ifu  = Module(new IFU)
-  private val cu   = Module(new CU)
-  private val igu  = Module(new IGU)
-  private val rfu  = Module(new RFU)
-  private val alu  = Module(new ALU)
-  private val bru  = Module(new BRU)
-  private val memU = Module(new MemU)
-  private val csru = Module(new CSRU)
-  private val ebreakDpi = Module(new DpiEbreak)
+  private val ifu            = Module(new IFU)
+  private val cu             = Module(new CU)
+  private val igu            = Module(new IGU)
+  private val rfu            = Module(new RFU)
+  private val alu            = Module(new ALU)
+  private val bru            = Module(new BRU)
+  private val memU           = Module(new MemU)
+  private val csru           = Module(new CSRU)
+  private val ebreakDpi      = Module(new DpiEbreak)
   private val invalidInstDpi = Module(new DpiInvalidInst)
 
   /* ========== 指令字段提取 ========== */
@@ -73,7 +73,7 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
     0.U,
     Seq(
       (cu.io.out.aluSel2 === ALUOp2Sel.OP2_RS2) -> rs2Data,
-      (cu.io.out.aluSel2 === ALUOp2Sel.OP2_IMM) -> imm,
+      (cu.io.out.aluSel2 === ALUOp2Sel.OP2_IMM) -> imm
     )
   )
   alu.io.in.aluOp := cu.io.out.aluOp
@@ -152,8 +152,8 @@ class NpcCoreTop extends Module with HasCoreParameter with HasRegFileParameter {
   io.commit.pc    := pc
   io.commit.dnpc  := dnpc
   io.commit.inst  := inst
-  io.commit.gpr := rfu.io.out.commit.gpr
-  io.commit.csr := csru.io.out.commit
+  io.commit.gpr   := rfu.io.out.commit.gpr
+  io.commit.csr   := csru.io.out.commit
 }
 
 object NpcCoreTop extends App {

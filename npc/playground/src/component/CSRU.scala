@@ -65,14 +65,14 @@ class CSRU extends Module with HasCoreParameter with HasCSRParameter {
 
   // ==================== 读取映射表 ====================
   private val csrReadMap = Seq(
-    (MSTATUS.U,   mstatus),
-    (MTVEC.U,     mtvec),
-    (MEPC.U,      mepc),
-    (MCAUSE.U,    mcause),
-    (MCYCLE.U,    mcycle(31, 0)),
-    (MCYCLEH.U,   mcycle(63, 32)),
-    (MVENDORID.U,    mvendorid), // mvendorid 地址
-    (MARCHID.U,    marchid)    // marchid 地址
+    (MSTATUS.U, mstatus),
+    (MTVEC.U, mtvec),
+    (MEPC.U, mepc),
+    (MCAUSE.U, mcause),
+    (MCYCLE.U, mcycle(31, 0)),
+    (MCYCLEH.U, mcycle(63, 32)),
+    (MVENDORID.U, mvendorid), // mvendorid 地址
+    (MARCHID.U, marchid)      // marchid 地址
   )
 
   // ==================== 读取 CSR ====================
@@ -82,17 +82,20 @@ class CSRU extends Module with HasCoreParameter with HasCSRParameter {
   // ==================== 计算写入数据 ====================
   // CSRRW: wdata = rs1
   // CSRRS: wdata = csr | rs1
-  private val csrWdata = MuxCase(io.in.rs1_data, Seq(
-    (io.in.op === CSROpType.CSR_RW) -> io.in.rs1_data,
-    (io.in.op === CSROpType.CSR_RS) -> (csrRdata | io.in.rs1_data)
-  ))
+  private val csrWdata = MuxCase(
+    io.in.rs1_data,
+    Seq(
+      (io.in.op === CSROpType.CSR_RW) -> io.in.rs1_data,
+      (io.in.op === CSROpType.CSR_RS) -> (csrRdata | io.in.rs1_data)
+    )
+  )
 
   // ==================== 写入 CSR ====================
   when(io.in.wen) {
     when(io.in.addr === MSTATUS.U) { mstatus := csrWdata }
-    when(io.in.addr === MTVEC.U)   { mtvec   := csrWdata }
-    when(io.in.addr === MEPC.U)    { mepc    := csrWdata }
-    when(io.in.addr === MCAUSE.U)  { mcause  := csrWdata }
+    when(io.in.addr === MTVEC.U) { mtvec := csrWdata }
+    when(io.in.addr === MEPC.U) { mepc := csrWdata }
+    when(io.in.addr === MCAUSE.U) { mcause := csrWdata }
   }
 
   // ==================== ECALL 异常处理 ====================

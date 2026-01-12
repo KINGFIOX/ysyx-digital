@@ -46,7 +46,8 @@ class MemU extends Module with HasCoreParameter {
   private val pmemWrite = Module(new DpiPmemWrite)
 
   /* ---------- 辅助信号 ---------- */
-  private val isLoad  = io.in.op.isOneOf(MemUOpType.mem_LB, MemUOpType.mem_LH, MemUOpType.mem_LW, MemUOpType.mem_LBU, MemUOpType.mem_LHU)
+  private val isLoad  =
+    io.in.op.isOneOf(MemUOpType.mem_LB, MemUOpType.mem_LH, MemUOpType.mem_LW, MemUOpType.mem_LBU, MemUOpType.mem_LHU)
   private val isStore = io.in.op.isOneOf(MemUOpType.mem_SB, MemUOpType.mem_SH, MemUOpType.mem_SW)
   private val subword = io.in.addr(dataBytesBits - 1, 0) // 字内偏移 (1:0)
 
@@ -74,9 +75,9 @@ class MemU extends Module with HasCoreParameter {
   private val safeAddr = Mux(io.in.en, io.in.addr, "h80000000".U(XLEN.W))
 
   /* ---------- DPI 读取控制 ---------- */
-  pmemRead.io.en    := io.in.en && isLoad
-  pmemRead.io.addr  := safeAddr
-  pmemRead.io.len   := readLen
+  pmemRead.io.en   := io.in.en && isLoad
+  pmemRead.io.addr := safeAddr
+  pmemRead.io.len  := readLen
 
   /* ---------- DPI 写入控制 ---------- */
   pmemWrite.io.clock := clock
