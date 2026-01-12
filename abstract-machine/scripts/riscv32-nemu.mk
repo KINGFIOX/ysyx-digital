@@ -1,9 +1,7 @@
 include $(AM_HOME)/scripts/isa/riscv.mk
 include $(AM_HOME)/scripts/platform/nemu.mk
 CFLAGS  += -DISA_H=\"riscv/riscv.h\"
-COMMON_CFLAGS += -march=rv32im_zicsr -mabi=ilp32   # overwrite
-LDFLAGS       += -melf32lriscv                     # overwrite
-LIBGCC        := $(shell riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -print-libgcc-file-name)
+COMMON_CFLAGS := -fno-pic -march=rv32im_zicsr -mabi=ilp32 -mstrict-align  # overwrite: 添加 Zicsr 扩展
 
 AM_SRCS += riscv/nemu/start.S \
            riscv/nemu/cte.c \

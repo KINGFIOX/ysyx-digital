@@ -1,9 +1,7 @@
 include $(AM_HOME)/scripts/isa/riscv.mk
 include $(AM_HOME)/scripts/platform/npc.mk
 CFLAGS  += -DISA_H=\"riscv/riscv.h\"
-COMMON_CFLAGS += -march=rv32i_zicsr -mabi=ilp32  # overwrite
-LDFLAGS       += -melf32lriscv                    # overwrite
-LIBGCC        := $(shell riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -print-libgcc-file-name)
+COMMON_CFLAGS := -fno-pic -march=rv32i_zicsr -mabi=ilp32 -mstrict-align  # overwrite: NPC 不支持 M 扩展
 
 AM_SRCS += riscv/npc/start.S \
            riscv/npc/cte.c \

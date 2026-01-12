@@ -6,13 +6,25 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs {
           inherit system;
           config.allowUnfree = true;
         };
+
+        # 创建空的 stubs-ilp32.h 来修复 rv32 编译问题
+        stubsIlp32Fix = pkgs.runCommand "stubs-ilp32-fix" { } ''
+          mkdir -p $out/include/gnu
+          echo "/* Empty stub for rv32 ilp32 ABI compatibility */" > $out/include/gnu/stubs-ilp32.h
+        '';
       in
       {
         devShells.default = pkgs.mkShell {
@@ -35,7 +47,7 @@
             gcc
             gdb
             lldb
-            clang-tools  # clangd, clang-format 等
+            clang-tools # clangd, clang-format 等
 
             # ========================
             # NEMU 依赖
@@ -45,19 +57,20 @@
             readline
             ncurses
             libllvm
+            dtc # spike
 
             # ========================
             # NPC (Chisel/Scala) 依赖
             # ========================
             jdk21
-            circt  # 包含 firtool，Chisel 生成 Verilog 需要
+            circt # 包含 firtool，Chisel 生成 Verilog 需要
             metals # mill 不会自动下载
 
             # ========================
             # Verilog/仿真工具
             # ========================
             verilator
-            gtkwave  # 波形查看器 (可选)
+            gtkwave # 波形查看器 (可选)
 
             # ========================
             # NVBoard / 图形界面依赖
@@ -65,24 +78,26 @@
             SDL2
             SDL2_image
             SDL2_ttf
-            SDL2_mixer  # 可能需要音频支持
+            SDL2_mixer # 可能需要音频支持
 
             # ========================
             # RISC-V 交叉编译工具链
             # ========================
             pkgsCross.riscv32.buildPackages.gcc
-            pkgsCross.riscv64.buildPackages.gcc
+            stubsIlp32Fix # 修复缺少的 stubs-ilp32.h
 
             # ========================
             # 实用工具
             # ========================
             git
             python3
-            bear  # 生成 compile_commands.json
+            bear # 生成 compile_commands.json
             ccache
           ];
 
           # 环境变量设置
+          STUBS_ILP32_FIX = "${stubsIlp32Fix}/include";
+
           shellHook = ''
             # 设置项目根目录
             export YSYX_HOME="$(pwd)"
@@ -95,9 +110,8 @@
             export CC="${pkgs.gcc}/bin/gcc"
             export CXX="${pkgs.gcc}/bin/g++"
 
-            # RISC-V 工具链前缀 (NixOS 使用 linux-gnu 工具链)
+            # RISC-V 工具链前缀
             export CROSS_COMPILE=riscv32-unknown-linux-gnu-
-            export RISCV64_CROSS_COMPILE=riscv64-unknown-linux-gnu-
 
             # Java 设置 (for Mill/Scala)
             export JAVA_HOME="${pkgs.jdk21}"
