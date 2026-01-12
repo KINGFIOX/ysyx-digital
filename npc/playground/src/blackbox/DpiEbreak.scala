@@ -5,12 +5,13 @@ import chisel3.util._
 
 class DpiEbreak extends BlackBox with HasBlackBoxInline {
   val io = IO(new Bundle {
-    val en  = Input(Bool())
-    val pc  = Input(UInt(32.W))
-    val a0  = Input(UInt(32.W)) // $a0 寄存器作为返回值
+    val en = Input(Bool())
+    val pc = Input(UInt(32.W))
+    val a0 = Input(UInt(32.W)) // $a0 寄存器作为返回值
   })
 
-  setInline("DpiEbreak.sv",
+  setInline(
+    "DpiEbreak.sv",
     """module DpiEbreak(
       |  input        en,
       |  input  [31:0] pc,
@@ -21,6 +22,6 @@ class DpiEbreak extends BlackBox with HasBlackBoxInline {
       |    ebreak_dpi(en, pc, a0);
       |  end
       |endmodule
-      |""".stripMargin)
+      |""".stripMargin
+  )
 }
-

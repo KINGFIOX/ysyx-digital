@@ -10,7 +10,8 @@ class DpiInvalidInst extends BlackBox with HasBlackBoxInline {
     val inst = Input(UInt(32.W))
   })
 
-  setInline("DpiInvalidInst.sv",
+  setInline(
+    "DpiInvalidInst.sv",
     """module DpiInvalidInst(
       |  input        en,
       |  input  [31:0] pc,
@@ -21,6 +22,6 @@ class DpiInvalidInst extends BlackBox with HasBlackBoxInline {
       |    invalid_inst_dpi(en, pc, inst);
       |  end
       |endmodule
-      |""".stripMargin)
+      |""".stripMargin
+  )
 }
-

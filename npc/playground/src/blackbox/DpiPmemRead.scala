@@ -5,13 +5,14 @@ import chisel3.util._
 
 class DpiPmemRead extends BlackBox with HasBlackBoxInline {
   val io = IO(new Bundle {
-    val en    = Input(Bool())
-    val addr  = Input(UInt(32.W))
-    val len   = Input(UInt(32.W))
-    val data  = Output(UInt(32.W))
+    val en   = Input(Bool())
+    val addr = Input(UInt(32.W))
+    val len  = Input(UInt(32.W))
+    val data = Output(UInt(32.W))
   })
 
-  setInline("DpiPmemRead.sv",
+  setInline(
+    "DpiPmemRead.sv",
     """module DpiPmemRead(
       |  input        en,
       |  input  [31:0] addr,
@@ -25,5 +26,6 @@ class DpiPmemRead extends BlackBox with HasBlackBoxInline {
       |    end
       |  end
       |endmodule
-      |""".stripMargin)
+      |""".stripMargin
+  )
 }

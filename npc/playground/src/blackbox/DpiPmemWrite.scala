@@ -12,7 +12,8 @@ class DpiPmemWrite extends BlackBox with HasBlackBoxInline {
     val data  = Input(UInt(32.W))
   })
 
-  setInline("DpiPmemWrite.sv",
+  setInline(
+    "DpiPmemWrite.sv",
     """module DpiPmemWrite(
       |  input        clock,
       |  input        en,
@@ -27,5 +28,6 @@ class DpiPmemWrite extends BlackBox with HasBlackBoxInline {
       |    end
       |  end
       |endmodule
-      |""".stripMargin)
+      |""".stripMargin
+  )
 }
