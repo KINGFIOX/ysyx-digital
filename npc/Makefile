@@ -1,7 +1,7 @@
 BUILD_DIR = ./build
 NPC_HOME := $(abspath .)
 
-MILL := $(NPC_HOME)/mill
+MILL := mill
 
 PRJ = playground
 

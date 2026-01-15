@@ -1,10 +1,9 @@
 package blackbox
 
 import chisel3._
-import chisel3.util._
 
-class DpiEbreak extends BlackBox with HasBlackBoxInline {
-  val io = IO(new Bundle {
+class DpiEbreak extends ExtModule {
+  val io = FlatIO(new Bundle {
     val en = Input(Bool())
     val pc = Input(UInt(32.W))
     val a0 = Input(UInt(32.W)) // $a0 寄存器作为返回值

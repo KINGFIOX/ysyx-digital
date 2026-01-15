@@ -35,6 +35,7 @@ static VerilatedVcdC *tfp = nullptr;
 static uint64_t sim_time = 0;  // 仿真时间, 用于波形 dump
 #endif
 
+static uint64_t ncycles = 0;
 
 /// @brief 打一拍(寄存器更新)
 static void tick() {
@@ -48,6 +49,7 @@ static void tick() {
   // 上升沿 (Chisel 默认在上升沿触发)
   top->clock = 1;
   top->eval();
+  ncycles++; // 统计
 #ifdef CONFIG_VERILATOR_TRACE
   tfp->dump(sim_time++);
 #endif
@@ -111,8 +113,8 @@ extern "C" void npc_core_fini(void) {
     delete ctx;
     ctx = nullptr;
   }
-
   Log("Verilator core finalized");
+  Log("total cycles: %lu", ncycles);
 }
 
 /// @brief 读取 commit 信息, 写入 Decode 结构体
