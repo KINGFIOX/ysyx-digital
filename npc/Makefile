@@ -6,7 +6,7 @@ MILL := mill
 PRJ = playground
 
 VERILATOR ?= verilator
-VERILATOR_TOP ?= NpcCoreTop
+VERILATOR_TOP ?= NPCSoC
 VERILATOR_SV  := $(BUILD_DIR)/$(VERILATOR_TOP).sv
 VERILATOR_FILELIST := $(BUILD_DIR)/filelist.f
 VERILATOR_MDIR := $(BUILD_DIR)/obj-verilator
@@ -27,7 +27,7 @@ verilog: $(VERILATOR_SV)
 $(VERILATOR_SV):
 	$(call git_commit, "generate verilog")
 	mkdir -p $(BUILD_DIR)
-	$(MILL) -i $(PRJ).runMain npc.NpcCoreTop --target-dir $(BUILD_DIR)
+	$(MILL) -i $(PRJ).runMain npc.NPCSoC --target-dir $(BUILD_DIR)
 
 # =============================== Verilog -> Verilator C++ ===============================
 
@@ -41,7 +41,7 @@ $(VERILATOR_LIB): $(VERILATOR_SV) $(VERILATOR_FILELIST)
 		--Mdir obj-verilator \
 		--top-module $(VERILATOR_TOP) \
 		--trace \
-		-O3 -Wall -Wno-fatal \
+		-O2 -Wall -Wno-fatal \
 		-CFLAGS "-std=c++17 -O2"
 	$(MAKE) -C $(VERILATOR_MDIR) -f V$(VERILATOR_TOP).mk
 

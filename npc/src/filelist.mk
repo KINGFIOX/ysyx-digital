@@ -24,7 +24,7 @@ LIBS += $(if $(CONFIG_TARGET_NATIVE_ELF),-lreadline -ldl -pie,)
 
 # =============================== Verilator 集成 ===============================
 # Verilator 生成的目录和文件 (使用 NPC_HOME 而非 BUILD_DIR, 因为此时 BUILD_DIR 尚未定义)
-VERILATOR_TOP    ?= NpcCoreTop
+VERILATOR_TOP    ?= NPCSoC
 VERILATOR_MDIR   := $(NPC_HOME)/build/obj-verilator
 VERILATOR_MK     := $(VERILATOR_MDIR)/V$(VERILATOR_TOP).mk
 VERILATOR_LIB    := $(VERILATOR_MDIR)/V$(VERILATOR_TOP)__ALL.a
