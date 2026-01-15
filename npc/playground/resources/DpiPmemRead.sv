@@ -1,4 +1,5 @@
 module DpiPmemRead(
+        input        clock,
         input        en,
         input  [31:0] addr,
         input  [31:0] len,
@@ -6,7 +7,7 @@ module DpiPmemRead(
     );
 
     import "DPI-C" function int pmem_read_dpi(input int en, input int addr, input int len);
-    always @(*) begin
+    always @(posedge clock) begin
         if (en) begin
             data <= pmem_read_dpi(1, addr, len);
         end

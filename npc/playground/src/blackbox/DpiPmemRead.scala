@@ -4,6 +4,7 @@ import chisel3._
 
 class DpiPmemRead extends ExtModule {
   val io = FlatIO(new Bundle {
+    val clock = Input(Clock())
     val en   = Input(Bool())
     val addr = Input(UInt(32.W))
     val len  = Input(UInt(32.W))

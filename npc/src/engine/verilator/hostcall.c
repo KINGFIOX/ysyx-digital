@@ -54,4 +54,3 @@ __attribute__((noinline)) void invalid_inst(vaddr_t thispc) {
 
   set_npc_state(NPC_ABORT, thispc, -1);
 }
-

@@ -78,6 +78,7 @@ class MemU extends Module with HasCoreParameter {
   pmemRead.io.en   := io.in.en && isLoad
   pmemRead.io.addr := safeAddr
   pmemRead.io.len  := readLen
+  pmemRead.io.clock := clock
 
   /* ---------- DPI 写入控制 ---------- */
   pmemWrite.io.clock := clock

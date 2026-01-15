@@ -6,6 +6,8 @@ import chisel3.util._
 import common.{HasCSRParameter, HasCoreParameter, HasRegFileParameter}
 import component._
 import blackbox.{DpiEbreak, DpiInvalidInst}
+import general.AXI4LiteMasterIO
+import general.AXI4LiteParams
 
 class ICacheBundle extends Bundle {
 }
@@ -14,6 +16,8 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
   val io = IO(new Bundle {
     val step = Input(Bool())
     val commit = Output(new CommitBundle)
+    val icache = new AXI4LiteMasterIO(new AXI4LiteParams)
+    // val dcache = new AXI4LiteMasterIO(new AXI4LiteParams)
   })
 
   /* ========== 实例化各模块 ========== */
@@ -29,9 +33,9 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
   private val invalidInstDpi = Module(new DpiInvalidInst)
 
   /* ========== 指令字段提取 ========== */
-  private val inst    = ifu.io.out.inst
-  private val pc      = ifu.io.out.pc
-  private val snpc    = ifu.io.out.snpc
+  private val inst    = ifu.io.out.bits.inst
+  private val pc      = ifu.io.out.bits.pc
+  private val snpc    = ifu.io.out.bits.pc + 4.U
   private val rd      = inst(11, 7)
   private val rs1     = inst(19, 15)
   private val rs2     = inst(24, 20)
@@ -123,9 +127,21 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
   )
 
   /* ========== IFU 连接 ========== */
-  // dnpc 只在 step 有效时更新
-  ifu.io.in.dnpc := Mux(io.step, dnpc, pc)
-  ifu.io.in.step := io.step
+  // PC 更新逻辑：
+  // 1. 当 step 有效时，可以接受新的指令
+  // 2. 当指令被处理完成（out.fire）且 step 有效时：
+  //    - 如果有分支跳转（dnpc != snpc），通过 io.in 发送新的 dnpc 来更新 PC
+  //    - 如果顺序执行（dnpc == snpc），IFU 内部会自动将 PC + 4（在 s_r_wait 状态）
+  // 3. 当 IFU 可以接受新的 dnpc（in.ready）且有跳转时，发送新的 dnpc
+  val hasJump = (dnpc =/= snpc) && io.step
+  ifu.io.in.bits.dnpc := dnpc
+  // 当 step 有效、有跳转、且 IFU 可以接受时，发送新的 dnpc
+  // 注意：我们可以在指令处理完成前就发送 dnpc，只要 IFU 处于空闲状态
+  ifu.io.in.valid := hasJump && ifu.io.in.ready
+  // 当 step 有效时，可以接受新的指令
+  ifu.io.out.ready := io.step
+  ifu.io.step := io.step
+  io.icache <> ifu.io.icache
 
   /* ========== EBREAK DPI 调用 ========== */
   // 只在 step 有效且是 ebreak 指令时触发

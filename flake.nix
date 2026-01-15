@@ -128,6 +128,13 @@
             # yosys-sta 路径
             export YOSYS_STA_HOME="$YSYX_HOME/yosys-sta"
 
+            # GDB 自动加载安全路径配置
+            # 确保 GDB 可以自动加载项目中的 .gdbinit 文件
+            mkdir -p "$HOME/.config/gdb"
+            if ! grep -q "add-auto-load-safe-path.*$NPC_HOME" "$HOME/.config/gdb/gdbinit" 2>/dev/null; then
+              echo "add-auto-load-safe-path $NPC_HOME" >> "$HOME/.config/gdb/gdbinit"
+            fi
+
             echo "🚀 YSYX 开发环境已加载!"
             echo "   NEMU_HOME:    $NEMU_HOME"
             echo "   AM_HOME:      $AM_HOME"
