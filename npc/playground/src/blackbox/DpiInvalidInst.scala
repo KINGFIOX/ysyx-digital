@@ -1,10 +1,9 @@
 package blackbox
 
 import chisel3._
-import chisel3.util._
 
-class DpiInvalidInst extends BlackBox with HasBlackBoxInline {
-  val io = IO(new Bundle {
+class DpiInvalidInst extends ExtModule {
+  val io = FlatIO(new Bundle {
     val en   = Input(Bool())
     val pc   = Input(UInt(32.W))
     val inst = Input(UInt(32.W))
@@ -25,3 +24,4 @@ class DpiInvalidInst extends BlackBox with HasBlackBoxInline {
       |""".stripMargin
   )
 }
+

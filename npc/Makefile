@@ -1,7 +1,7 @@
 BUILD_DIR = ./build
 NPC_HOME := $(abspath .)
 
-MILL := $(NPC_HOME)/mill
+MILL := mill
 
 PRJ = playground
 
@@ -58,7 +58,7 @@ checkformat:
 	$(MILL) -i __.checkFormat
 
 bsp:
-	./mill -i mill.bsp.BSP/install
+	$(MILL) -i mill.bsp.BSP/install
 
 idea:
 	$(MILL) -i mill.idea.GenIdea/idea

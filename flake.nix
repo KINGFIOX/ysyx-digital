@@ -48,6 +48,7 @@
             gdb
             lldb
             clang-tools # clangd, clang-format 等
+            bear
 
             # ========================
             # NEMU 依赖
@@ -65,6 +66,7 @@
             jdk21
             circt # 包含 firtool，Chisel 生成 Verilog 需要
             metals # mill 不会自动下载
+            mill # 1.0.6
 
             # ========================
             # Verilog/仿真工具
@@ -122,11 +124,15 @@
             # SDL2 配置
             export SDL2_CONFIG="${pkgs.SDL2}/bin/sdl2-config"
 
+            # yosys-sta 路径
+            export YOSYS_STA_HOME="$YSYX_HOME/yosys-sta"
+
             echo "🚀 YSYX 开发环境已加载!"
             echo "   NEMU_HOME:    $NEMU_HOME"
             echo "   AM_HOME:      $AM_HOME"
             echo "   NPC_HOME:     $NPC_HOME"
             echo "   NVBOARD_HOME: $NVBOARD_HOME"
+            echo "   YOSYS_STA_HOME: $YOSYS_STA_HOME"
             echo ""
             echo "📦 可用工具: gcc, verilator, gdb..."
             echo "🔧 RISC-V 工具链: $CROSS_COMPILE"

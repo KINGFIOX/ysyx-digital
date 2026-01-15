@@ -1,10 +1,9 @@
 package blackbox
 
 import chisel3._
-import chisel3.util._
 
-class DpiPmemRead extends BlackBox with HasBlackBoxInline {
-  val io = IO(new Bundle {
+class DpiPmemRead extends ExtModule {
+  val io = FlatIO(new Bundle {
     val en   = Input(Bool())
     val addr = Input(UInt(32.W))
     val len  = Input(UInt(32.W))
