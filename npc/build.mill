@@ -31,9 +31,9 @@ object playground extends ScalaModule with ScalafmtModule { m =>
 
   override def repositoriesTask = Task.Anon {
     super.repositoriesTask() ++ Seq(
-      coursier.MavenRepository("https://repo.scala-sbt.org/scalasbt/maven-releases"),
-      coursier.MavenRepository("https://oss.sonatype.org/content/repositories/releases"),
-      coursier.MavenRepository("https://oss.sonatype.org/content/repositories/snapshots")
+      coursier.MavenRepository( "https://repo.scala-sbt.org/scalasbt/maven-releases" ),
+      coursier.MavenRepository( "https://oss.sonatype.org/content/repositories/releases" ),
+      coursier.MavenRepository( "https://oss.sonatype.org/content/repositories/snapshots" )
     )
   }
 }

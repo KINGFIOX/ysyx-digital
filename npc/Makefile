@@ -28,7 +28,6 @@ $(VERILATOR_SV):
 	$(call git_commit, "generate verilog")
 	mkdir -p $(BUILD_DIR)
 	$(MILL) -i $(PRJ).runMain Elaborate --target-dir $(BUILD_DIR)
-	@sed -i '/^\/\/ ----- 8< ----- FILE "firrtl_black_box_resource_files.f"/,$$d' $(VERILATOR_SV)
 
 # =============================== Verilog -> Verilator C++ ===============================
 
@@ -58,7 +57,7 @@ checkformat:
 	$(MILL) -i __.checkFormat
 
 bsp:
-	./mill -i mill.bsp.BSP/install
+	$(MILL) -i mill.bsp.BSP/install
 
 idea:
 	$(MILL) -i mill.idea.GenIdea/idea

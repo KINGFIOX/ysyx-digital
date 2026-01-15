@@ -48,6 +48,7 @@
             gdb
             lldb
             clang-tools # clangd, clang-format 等
+            bear
 
             # ========================
             # NEMU 依赖
