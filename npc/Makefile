@@ -8,6 +8,7 @@ PRJ = playground
 VERILATOR ?= verilator
 VERILATOR_TOP ?= NpcCoreTop
 VERILATOR_SV  := $(BUILD_DIR)/$(VERILATOR_TOP).sv
+VERILATOR_FILELIST := $(BUILD_DIR)/filelist.f
 VERILATOR_MDIR := $(BUILD_DIR)/obj-verilator
 VERILATOR_MK  := $(VERILATOR_MDIR)/V$(VERILATOR_TOP).mk
 VERILATOR_LIB := $(VERILATOR_MDIR)/V$(VERILATOR_TOP)__ALL.a
@@ -28,17 +29,17 @@ $(VERILATOR_SV):
 	$(call git_commit, "generate verilog")
 	mkdir -p $(BUILD_DIR)
 	$(MILL) -i $(PRJ).runMain Elaborate --target-dir $(BUILD_DIR)
-	@sed -i '/^\/\/ ----- 8< ----- FILE "firrtl_black_box_resource_files.f"/,$$d' $(VERILATOR_SV)
 
 # =============================== Verilog -> Verilator C++ ===============================
 
 verilate: $(VERILATOR_LIB)
 
-$(VERILATOR_LIB): $(VERILATOR_SV)
+$(VERILATOR_LIB): $(VERILATOR_SV) $(VERILATOR_FILELIST)
 	@echo "=== Verilating $(VERILATOR_TOP) ==="
-	$(VERILATOR) --cc $(VERILATOR_SV) \
-		$(wildcard $(BUILD_DIR)/*.sv) \
-		--Mdir $(VERILATOR_MDIR) \
+	cd $(BUILD_DIR) && $(VERILATOR) --cc \
+		-f filelist.f \
+		-y verification \
+		--Mdir obj-verilator \
 		--top-module $(VERILATOR_TOP) \
 		--trace \
 		-O3 -Wall -Wno-fatal \
@@ -58,7 +59,7 @@ checkformat:
 	$(MILL) -i __.checkFormat
 
 bsp:
-	./mill -i mill.bsp.BSP/install
+	$(MILL) -i mill.bsp.BSP/install
 
 idea:
 	$(MILL) -i mill.idea.GenIdea/idea
@@ -79,6 +80,6 @@ gdb:
 
 sim:
 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
-	@echo "Write this Makefile by yourself."
+	@gtkwave $(BUILD_DIR)/npc_core.vcd
 
 -include ../Makefile
