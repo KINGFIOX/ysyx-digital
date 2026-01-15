@@ -6,6 +6,7 @@
 !*.scala
 !*.[cSh]
 !*.v
+!*.sv
 !*.cpp
 !*.cc
 !.gitignore
@@ -14,6 +15,7 @@
 !Kconfig
 include/config
 include/generated
+build
 
 # flex/bison
 !/src/monitor/sdb/expr.l
