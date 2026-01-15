@@ -122,6 +122,12 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
     val slaves  = Vec(p.numSlaves, Flipped(new AXI4LiteSlaveIO(p.axi)))
   })
 
+  // Safe dynamic indexing helper to avoid width mismatch warnings
+  private def safeIndex[T <: Data](vec: Seq[T], idx: UInt): T = {
+    if (vec.size == 1) vec.head
+    else VecInit(vec)(idx)
+  }
+
   // Address decoder: returns slave index for given address
   def addrDecode(addr: UInt): UInt = {
     val slaveIdx = WireDefault(0.U(p.slaveIdW.W))
@@ -145,7 +151,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
   // AW arbiters: one per slave
   val awArbs = Seq.fill(p.numSlaves)(Module(new RRArbiter(new AXI4LiteAWRouted(p), p.numMasters)))
 
-  for (m <- 0 until p.numMasters) { // 主 <-> 仲裁器
+  for (m <- 0 until p.numMasters) { // master <-> arbiter
     val targetSlave = addrDecode(io.masters(m).aw.bits.addr)
 
     // Update pending write tracking
@@ -158,10 +164,10 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
     }
 
     // Master ready when target slave's arbiter is ready
-    io.masters(m).aw.ready := VecInit(awArbs.map(_.io.in(m).ready))(targetSlave)
+    io.masters(m).aw.ready := safeIndex(awArbs.map(_.io.in(m).ready), targetSlave)
   }
 
-  for (s <- 0 until p.numSlaves) { // 仲裁器 <-> 从
+  for (s <- 0 until p.numSlaves) { // arbiter <-> slave
     awArbs(s).io.in.zipWithIndex.foreach { case (arbIn, m) =>
       val targetSlave = addrDecode(io.masters(m).aw.bits.addr)
       arbIn.bits.aw  := io.masters(m).aw.bits
@@ -190,7 +196,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
   for (m <- 0 until p.numMasters) {
     // W follows AW, use stored target
     val targetSlave = Mux(awPending(m), awTarget(m), addrDecode(io.masters(m).aw.bits.addr))
-    io.masters(m).w.ready := VecInit(wArbs.map(_.io.in(m).ready))(targetSlave) && awPending(m)
+    io.masters(m).w.ready := safeIndex(wArbs.map(_.io.in(m).ready), targetSlave) && awPending(m)
   }
 
   for (s <- 0 until p.numSlaves) {
@@ -209,7 +215,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
 
   for (s <- 0 until p.numSlaves) {
     val targetMaster = bReturnId(s)
-    io.slaves(s).b.ready := VecInit(bArbs.map(_.io.in(s).ready))(targetMaster)
+    io.slaves(s).b.ready := safeIndex(bArbs.map(_.io.in(s).ready), targetMaster)
   }
 
   for (m <- 0 until p.numMasters) {
@@ -228,7 +234,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
 
   for (m <- 0 until p.numMasters) {
     val targetSlave = addrDecode(io.masters(m).ar.bits.addr)
-    io.masters(m).ar.ready := VecInit(arArbs.map(_.io.in(m).ready))(targetSlave)
+    io.masters(m).ar.ready := safeIndex(arArbs.map(_.io.in(m).ready), targetSlave)
   }
 
   for (s <- 0 until p.numSlaves) {
@@ -259,7 +265,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
 
   for (s <- 0 until p.numSlaves) {
     val targetMaster = rReturnId(s)
-    io.slaves(s).r.ready := VecInit(rArbs.map(_.io.in(s).ready))(targetMaster)
+    io.slaves(s).r.ready := safeIndex(rArbs.map(_.io.in(s).ready), targetMaster)
   }
 
   for (m <- 0 until p.numMasters) {

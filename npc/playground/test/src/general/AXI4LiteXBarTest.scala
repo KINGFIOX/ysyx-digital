@@ -172,7 +172,7 @@ class AXI4LiteXBarTest extends AnyFlatSpec with Matchers {
     simulate(new AXI4LiteXBar(oneMasterTwoSlaveParams)) { dut =>
       initMasters(dut)
       initSlaves(dut)
-      dut.clock.step(1)
+      dut.clock.step(1) // init
 
       // Issue write address to slave 0's address range
       issueWriteAddr(dut, masterId = 0, addr = 0x00001000L)
@@ -187,13 +187,20 @@ class AXI4LiteXBarTest extends AnyFlatSpec with Matchers {
       dut.io.masters(0).aw.valid.poke(false.B)
       dut.clock.step(1)
 
+      // Block slave W ready so we can observe the valid signal before fire
+      dut.io.slaves(0).w.ready.poke(false.B)
+
       // Now issue write data (awPending is now true)
       issueWriteData(dut, masterId = 0, data = 0xDEADBEEFL)
       dut.clock.step(1)
 
-      // Check that slave 0 received the data
+      // Check that slave 0 received the data (w.fire hasn't happened yet)
       assert(dut.io.slaves(0).w.valid.peek().litToBoolean, "Slave 0 should see valid W")
       assert(dut.io.slaves(0).w.bits.data.peek().litValue == 0xDEADBEEFL)
+
+      // Now let W complete
+      dut.io.slaves(0).w.ready.poke(true.B)
+      dut.clock.step(1)
 
       dut.io.masters(0).w.valid.poke(false.B)
       dut.clock.step(1)
@@ -226,11 +233,18 @@ class AXI4LiteXBarTest extends AnyFlatSpec with Matchers {
       dut.io.masters(0).aw.valid.poke(false.B)
       dut.clock.step(1)
 
+      // Block slave W ready so we can observe the valid signal before fire
+      dut.io.slaves(1).w.ready.poke(false.B)
+
       issueWriteData(dut, masterId = 0, data = 0xCAFEBABEL)
       dut.clock.step(1)
 
       assert(dut.io.slaves(1).w.valid.peek().litToBoolean, "Slave 1 should see valid W")
       assert(dut.io.slaves(1).w.bits.data.peek().litValue == 0xCAFEBABEL)
+
+      // Now let W complete
+      dut.io.slaves(1).w.ready.poke(true.B)
+      dut.clock.step(1)
 
       dut.io.masters(0).w.valid.poke(false.B)
       dut.clock.step(1)
@@ -478,12 +492,20 @@ class AXI4LiteXBarTest extends AnyFlatSpec with Matchers {
       // Master should not see ready on W (slave not ready)
       assert(!dut.io.masters(0).w.ready.peek().litToBoolean, "Master should not see W ready")
 
+      // Temporarily disable W valid to check ready without fire
+      dut.io.masters(0).w.valid.poke(false.B)
+
       // Now slave becomes ready
       dut.io.slaves(0).w.ready.poke(true.B)
-      dut.clock.step(1)
 
-      // Master should now see ready
+      // Master should now see ready (checking combinationally)
+      // Need to re-enable valid to check, but awPending is still true
+      dut.io.masters(0).w.valid.poke(true.B)
+
+      // Check ready before step (combinational check)
       assert(dut.io.masters(0).w.ready.peek().litToBoolean, "Master should see W ready")
+
+      dut.clock.step(1)  // Complete the W transaction
     }
   }
 

@@ -64,6 +64,7 @@
             # NPC (Chisel/Scala) 依赖
             # ========================
             jdk21
+            scala_2_13
             circt # 包含 firtool，Chisel 生成 Verilog 需要
             metals # mill 不会自动下载
             mill # 1.0.6

@@ -24,11 +24,10 @@ test:
 
 verilog: $(VERILATOR_SV)
 
-# 这个 sed 命令会删除 NpcCoreTop.sv 中从 // ----- 8< ----- FILE "firrtl_black_box_resource_files.f" 开始到文件末尾的所有内容
 $(VERILATOR_SV):
 	$(call git_commit, "generate verilog")
 	mkdir -p $(BUILD_DIR)
-	$(MILL) -i $(PRJ).runMain Elaborate --target-dir $(BUILD_DIR)
+	$(MILL) -i $(PRJ).runMain npc.NpcCoreTop --target-dir $(BUILD_DIR)
 
 # =============================== Verilog -> Verilator C++ ===============================
 
