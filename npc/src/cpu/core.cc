@@ -20,7 +20,7 @@ extern "C" {
 #include "../isa/riscv32/local-include/reg.h"
 }
 
-#include "VNpcCoreTop.h"
+#include "VNPCSoC.h"
 #include <verilated.h>
 
 #ifdef CONFIG_VERILATOR_TRACE
@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 // Verilator 模型实例
-static VNpcCoreTop *top = nullptr;
+static VNPCSoC *top = nullptr;
 static VerilatedContext *ctx = nullptr;
 #ifdef CONFIG_VERILATOR_TRACE
 static VerilatedVcdC *tfp = nullptr;
@@ -70,7 +70,7 @@ extern "C" bool npc_core_init(int argc, char *argv[]) {
   ctx->commandArgs(argc, argv);
 
   // init top module
-  top = new VNpcCoreTop(ctx);
+  top = new VNPCSoC(ctx);
 
 // init trace
 #if defined(CONFIG_VERILATOR_TRACE)
