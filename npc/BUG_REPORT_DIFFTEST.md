@@ -42,7 +42,7 @@ After init: NPC t0=0x0, REF t0=0x0                // t0 初始化正确
 
 // difftest_step 中
 Before exec: REF pc=0x80000000, t0=0x0
-After exec:  REF pc=0x80000004, t0=0x0   // QEMU 执行后 t0 仍为 0！
+After exec:  REF pc=0x80000004, t0=0x0   // spike 执行后 t0 仍为 0！
 NPC state:   pc=0x80000004, t0=0x80000000
 ```
 
@@ -343,4 +343,3 @@ $ echo -e "si\nsi\nsi\nsi\nsi\nq" | make run IMG=add-riscv32-nemu.bin
 | `tools/qemu-diff/src/gdb-host.c` | 添加 `gdb_memcpy_from_qemu()` 辅助调试函数 |
 
 ---
-

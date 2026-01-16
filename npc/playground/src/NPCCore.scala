@@ -47,10 +47,7 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   cu.io.in.inst := inst
 
   /* ========== 立即数扩展 ========== */
-  igu.io.in.inst_31_7 := inst(
-    InstLen - 1,
-    OpcodeLen
-  ) // 只传递 inst[31:7], 不需要 opcode
+  igu.io.in.inst_31_7 := inst(InstLen - 1, OpcodeLen) // 只传递 inst[31:7], 不需要 opcode
   igu.io.in.immType := cu.io.out.immType
   private val imm = igu.io.out.imm
 
@@ -127,18 +124,16 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
 
   /* ========== 状态机 ========== */
   object State extends ChiselEnum {
-    val idle,       // 空闲，等待 step 信号
-        inst_wait,  // 等待 IFU 取指完成
-        mem_wait,   // 等待 LSU 内存操作完成
-        dnpc_send   // 等待 dnpc 发送给 IFU
-        = Value
+    // wait for ifu.io.in.ready
+    val idle, inst_wait, mem_wait, ifu_wait = Value
   }
   private val state = RegInit(State.idle)
   dontTouch(state)
 
-  // 保存控制信号（因为 inst_wait 后 inst 可能变化，需要锁存 memEn）
-  private val memEn_reg = RegInit(false.B)
-  private val wbSel_reg = RegInit(WBSel.WB_ALU)
+  // 锁存信号寄存器（因为 inst_wait 后 IFU 输出可能变化）
+  private val dnpc_reg = RegInit(0.U(XLEN.W))
+  private val pc_reg = RegInit(0.U(XLEN.W))
+  private val inst_reg = RegInit(0.U(InstLen.W))
 
   // 指令执行完成信号
   // - 非内存指令：在 inst_wait 状态且 ifu.io.out.fire 时完成
@@ -155,22 +150,23 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
     }
     is(State.inst_wait) {
       when(ifu.io.out.fire) {
-        // 锁存控制信号
-        memEn_reg := cu.io.out.memEn
-        wbSel_reg := cu.io.out.wbSel
+        // 锁存所有需要在后续状态使用的信号
+        dnpc_reg := dnpc
+        pc_reg := pc
+        inst_reg := inst
         when(cu.io.out.memEn) {
           state := State.mem_wait
         }.otherwise {
-          state := State.dnpc_send
+          state := State.ifu_wait
         }
       }
     }
     is(State.mem_wait) {
       when(lsu.io.out.fire) {
-        state := State.dnpc_send
+        state := State.ifu_wait
       }
     }
-    is(State.dnpc_send) {
+    is(State.ifu_wait) {
       when(ifu.io.in.fire) {
         state := State.idle
       }
@@ -187,9 +183,9 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
 
   /* ========== IFU 连接 ========== */
   ifu.io.step := io.step
-  ifu.io.out.ready := (state === State.inst_wait)           // 在 inst_wait 状态接收指令
-  ifu.io.in.valid := (state === State.dnpc_send)            // 在 dnpc_send 状态发送 dnpc
-  ifu.io.in.bits.dnpc := dnpc
+  ifu.io.out.ready := (state === State.inst_wait) // 在 inst_wait 状态接收指令
+  ifu.io.in.valid := (state === State.ifu_wait) // 在 ifu_wait 状态发送 dnpc
+  ifu.io.in.bits.dnpc := dnpc_reg // 使用锁存的 dnpc
   ifu.io.icache <> io.icache
 
   /* ========== LSU 连接 ========== */
@@ -203,21 +199,25 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
 
   /* ========== EBREAK DPI 调用 ========== */
   // 只在指令执行完成且是 ebreak 指令时触发
-  ebreakDpi.io.en := inst_complete && cu.io.out.isEbreak
+  // ebreak 不是内存指令，所以只会在 inst_complete_no_mem 时触发
+  ebreakDpi.io.en := inst_complete_no_mem && cu.io.out.isEbreak
   ebreakDpi.io.pc := pc
   ebreakDpi.io.a0 := rfu.io.out.commit.gpr(10) // $a0 = x10, 作为返回值
 
   /* ========== Invalid Instruction DPI 调用 ========== */
   // 只在指令执行完成且是无效指令时触发
-  invalidInstDpi.io.en := inst_complete && cu.io.out.invalidInst
+  // 无效指令也只会在 inst_complete_no_mem 时触发
+  invalidInstDpi.io.en := inst_complete_no_mem && cu.io.out.invalidInst
   invalidInstDpi.io.pc := pc
   invalidInstDpi.io.inst := inst
 
   /* ========== Commit 输出 (供 difftest) ========== */
+  // 非内存指令在 inst_wait 状态完成，使用组合逻辑值
+  // 内存指令在 mem_wait 状态完成，使用锁存值
   io.commit.valid := inst_complete
-  io.commit.pc := pc
-  io.commit.dnpc := dnpc
-  io.commit.inst := inst
+  io.commit.pc := Mux(inst_complete_no_mem, pc, pc_reg)
+  io.commit.dnpc := Mux(inst_complete_no_mem, dnpc, dnpc_reg)
+  io.commit.inst := Mux(inst_complete_no_mem, inst, inst_reg)
   io.commit.gpr := rfu.io.out.commit.gpr
   io.commit.csr := csru.io.out.commit
 }
