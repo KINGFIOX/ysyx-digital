@@ -14,6 +14,7 @@
  ***************************************************************************************/
 
 #include "../monitor/sdb/sdb.h"
+#include "debug.h"
 #include "isa.h"
 #include <cpu/core.h>
 #include <cpu/cpu.h>
@@ -171,7 +172,7 @@ static void decode_operand(const Decode *s, int *rd, word_t *src1, word_t *src2,
 
 static void ftrace_log(const Decode *s) {
   INSTPAT_START();
-  INSTPAT("??????? ????? ????? ????? ????? 11011 11", jal   , J, { 
+  INSTPAT("??????? ????? ????? ????? ????? 11011 11", jal   , J, {
     if (rd == 1) {
       ftrace_call(s->pc, s->dnpc);
     }

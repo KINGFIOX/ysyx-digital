@@ -52,5 +52,6 @@ __attribute__((noinline)) void invalid_inst(vaddr_t thispc) {
                   ANSI_FG_RED),
          isa_logo);
 
-  set_npc_state(NPC_ABORT, thispc, -1);
+//   set_npc_state(NPC_ABORT, thispc, -1);
+  set_npc_state(NPC_STOP, thispc, -1);
 }

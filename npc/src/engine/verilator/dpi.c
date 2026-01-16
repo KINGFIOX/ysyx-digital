@@ -2,8 +2,7 @@
 #include <cpu/cpu.h>
 
 
-int pmem_read_dpi(int en, int addr, int len) {
-  if (!en) return 0;
+int pmem_read_dpi(int addr, int len) {
   return (int)paddr_read((paddr_t)addr, len);
 }
 

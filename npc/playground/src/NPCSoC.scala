@@ -19,7 +19,7 @@ class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter
   val csr   = Output(new CSRUCommitBundle)
 }
 
-class NPCSoC extends Module with HasCoreParameter with HasRegFileParameter {
+class NPCSoC extends Module {
   val io = IO(new Bundle {
     val step = Input(Bool())
     val commit = Output(new CommitBundle)
@@ -41,13 +41,13 @@ class NPCSoC extends Module with HasCoreParameter with HasRegFileParameter {
   )
 
   val xbar = Module(new AXI4LiteXBar(xbarParams))
-  
+
   // 连接 core 的 icache 到 xbar 的 master 端口
   xbar.io.masters(0) <> core.io.icache
 
   // 创建内存 slave
   val memSlave = Module(new AXI4LitePmemSlave)
-  
+
   // 连接 xbar 的 slave 端口到内存 slave
   xbar.io.slaves(0) <> memSlave.io.axi
 }

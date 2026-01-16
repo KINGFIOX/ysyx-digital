@@ -27,7 +27,7 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
   private val rfu            = Module(new RFU)
   private val alu            = Module(new ALU)
   private val bru            = Module(new BRU)
-  private val memU           = Module(new MemU)
+  // private val memU           = Module(new MemU)
   private val csru           = Module(new CSRU)
   private val ebreakDpi      = Module(new DpiEbreak)
   private val invalidInstDpi = Module(new DpiInvalidInst)
@@ -82,11 +82,12 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
   val brTaken = bru.io.out.br_flag
 
   /* ========== 内存单元 ========== */
-  memU.io.in.en    := io.step && cu.io.out.memEn
-  memU.io.in.op    := cu.io.out.memOp
-  memU.io.in.addr  := aluResult // ALU 计算出的地址
-  memU.io.in.wdata := rs2Data   // Store 的数据
-  val memData = memU.io.out.rdata
+  // memU.io.in.en    := io.step && cu.io.out.memEn
+  // memU.io.in.op    := cu.io.out.memOp
+  // memU.io.in.addr  := aluResult // ALU 计算出的地址
+  // memU.io.in.wdata := rs2Data   // Store 的数据
+  // val memData = memU.io.out.rdata
+  val memData = 0.U
 
   /* ========== CSR 单元 ========== */
   csru.io.in.addr     := csrAddr
@@ -151,7 +152,8 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
 
   /* ========== Invalid Instruction DPI 调用 ========== */
   // 只在 step 有效且是无效指令时触发
-  invalidInstDpi.io.en   := io.step && cu.io.out.invalidInst
+  // invalidInstDpi.io.en   := io.step && cu.io.out.invalidInst
+  invalidInstDpi.io.en   := false.B
   invalidInstDpi.io.pc   := pc
   invalidInstDpi.io.inst := inst
 
