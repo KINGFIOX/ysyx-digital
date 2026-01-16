@@ -18,7 +18,7 @@ class AXI4LitePmemSlave(params: AXI4LiteParams) extends Module with HasCoreParam
 
   // ========== 读操作状态机 ==========
   object ReadState extends ChiselEnum {
-    val idle, reading, done = Value
+    val idle, reading, waiting, done = Value
   }
 
   val read_state = RegInit(ReadState.idle)
@@ -49,15 +49,19 @@ class AXI4LitePmemSlave(params: AXI4LiteParams) extends Module with HasCoreParam
       }
     }
     is(ReadState.reading) {
-      pmemReadDpiWrapper.io.en_i := true.B
-      pmemReadDpiWrapper.io.addr_i := read_addr_reg
-
       when(counter === 0.U) {
-        read_data_reg := pmemReadDpiWrapper.io.data_o
-        read_state := ReadState.done
+        // 使能 DPI 读取，进入 waiting 状态等待数据就绪
+        pmemReadDpiWrapper.io.en_i := true.B
+        pmemReadDpiWrapper.io.addr_i := read_addr_reg
+        read_state := ReadState.waiting
       }.otherwise {
         counter := counter - 1.U
       }
+    }
+    is(ReadState.waiting) {
+      // DPI 使用时序逻辑，数据在这一拍才就绪，采样后转到 done
+      read_data_reg := pmemReadDpiWrapper.io.data_o
+      read_state := ReadState.done
     }
     is(ReadState.done) {
       when(io.axi.r.fire) {
@@ -132,9 +136,9 @@ class AXI4LitePmemSlave(params: AXI4LiteParams) extends Module with HasCoreParam
       }
     }
     is(WriteState.writing) {
-      pmemWriteDpiWrapper.io.en_i := true.B
-
       when(counter === 0.U) {
+        // 只在最后一拍使能写入，避免多次写入 MMIO
+        pmemWriteDpiWrapper.io.en_i := true.B
         write_state := WriteState.done
       }.otherwise {
         counter := counter - 1.U
