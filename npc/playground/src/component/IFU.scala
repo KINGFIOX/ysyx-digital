@@ -69,7 +69,7 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   io.out.valid := (state === State.allowin_wait)
   io.out.bits.inst := inst_reg
   io.out.bits.pc := pc_reg
-  io.out.bits.isValid := (state === State.allowin_wait) && (exception_reg === IFUExceptionType.ifu_X)
+  io.out.bits.isValid := (state === State.allowin_wait) // 后续用来冲刷流水线的时候用
   io.out.bits.exception := exception_reg
   io.in.ready := (state === State.done_wait)  // 在 done_wait 状态接收 dnpc
 

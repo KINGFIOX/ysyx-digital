@@ -5,10 +5,10 @@ import chisel3.util._
 
 import common.{HasCSRParameter, HasCoreParameter, HasRegFileParameter}
 import component._
-import blackbox.{DpiEbreak, DpiInvalidInst}
 import general.AXI4LiteMasterIO
 import general.AXI4LiteParams
 import firrtl.options.Stage
+import blackbox.ExceptionDpiWrapper
 
 // 1. 组件初始化
 // 2. 组合逻辑电路
@@ -31,8 +31,7 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   private val bru = Module(new BRU)
   private val lsu = Module(new LSU(params))
   private val csru = Module(new CSRU)
-  private val ebreakDpi = Module(new DpiEbreak)
-  private val invalidInstDpi = Module(new DpiInvalidInst)
+  private val exceptionDpi = Module(new ExceptionDpiWrapper)
 
   /* ========== 指令字段提取 ========== */
   private val inst = ifu.io.out.bits.inst
@@ -83,10 +82,58 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   bru.io.in.bru_op := cu.io.out.bruOp
   private val brTaken = bru.io.out.br_flag
 
+  /* ========== 异常收集与 mcause 计算 ========== */
+  // IFU 异常 -> mcause 映射
+  private val ifuException = ifu.io.out.bits.exception
+  private val ifuHasException = ifuException =/= IFUExceptionType.ifu_X
+  private val ifuMcause = MuxLookup(ifuException.asUInt, 0.U)(Seq(
+    IFUExceptionType.ifu_INSTRUCTION_ADDRESS_MISALIGNED.asUInt -> 0.U,
+    IFUExceptionType.ifu_INSTRUCTION_ACCESS_FAULT.asUInt       -> 1.U,
+    IFUExceptionType.ifu_INSTRUCTION_PAGE_FAULT.asUInt         -> 12.U
+  ))
+
+  // CU 异常 -> mcause 映射
+  private val cuException = cu.io.out.exception
+  private val cuHasException = cuException =/= CUExceptionType.cu_X && cuException =/= CUExceptionType.cu_MRET  // mret 不是异常
+  private val cuMcause = MuxLookup(cuException.asUInt, 0.U)(Seq(
+    CUExceptionType.cu_ILLEGAL_INSTRUCTION.asUInt  -> 2.U,
+    CUExceptionType.cu_BREAKPOINT.asUInt           -> 3.U,
+    CUExceptionType.cu_ECALL_FROM_U_MODE.asUInt    -> 8.U,
+    CUExceptionType.cu_ECALL_FROM_S_MODE.asUInt    -> 9.U,
+    CUExceptionType.cu_ECALL_FROM_M_MODE.asUInt    -> 11.U
+  ))
+
+  // LSU 异常 -> mcause 映射（在 mem_wait 状态使用）
+  private val lsuException = lsu.io.out.bits.exception
+  private val lsuHasException = lsuException =/= MemUExceptionType.mem_X
+  private val lsuMcause = MuxLookup(lsuException.asUInt, 0.U)(Seq(
+    MemUExceptionType.mem_LOAD_ADDRESS_MISALIGNED.asUInt  -> 4.U,
+    MemUExceptionType.mem_LOAD_ACCESS_FAULT.asUInt        -> 5.U,
+    MemUExceptionType.mem_STORE_ADDRESS_MISALIGNED.asUInt -> 6.U,
+    MemUExceptionType.mem_STORE_ACCESS_FAULT.asUInt       -> 7.U,
+    MemUExceptionType.mem_LOAD_PAGE_FAULT.asUInt          -> 13.U,
+    MemUExceptionType.mem_STORE_PAGE_FAULT.asUInt         -> 15.U
+  ))
+
+  // 异常优先级: IFU > CU > LSU
+  // 非内存指令: 只检查 IFU 和 CU 异常
+  // 内存指令: 还需要检查 LSU 异常
+  private val hasException_noMem = ifuHasException || cuHasException
+  private val mcause_noMem = Mux(ifuHasException, ifuMcause, cuMcause)
+
+  // 是否可处理的异常 (ecall 跳转到 mtvec)
+  private val isEcall = cuException === CUExceptionType.cu_ECALL_FROM_M_MODE ||
+                        cuException === CUExceptionType.cu_ECALL_FROM_S_MODE ||
+                        cuException === CUExceptionType.cu_ECALL_FROM_U_MODE
+  private val isMret = cuException === CUExceptionType.cu_MRET
+
+  // 不可处理的异常 (需要调用 DPI)
+  private val isUnhandledException_noMem = hasException_noMem && !isEcall
+
   /* ========== CSR 单元 ========== */
   csru.io.in.addr := csrAddr
   csru.io.in.op := cu.io.out.csrOp
-  // wen, isEcall, isMret 的门控在状态机之后设置
+  // wen, hasException, isMret 的门控在状态机之后设置
   csru.io.in.rs1_data := rs1Data
   csru.io.in.pc := pc
   private val csrData = csru.io.out.rdata
@@ -111,14 +158,20 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
 
   /* ========== 下一条 PC 计算 ========== */
   // ALU 已计算: JAL/Branch 为 PC+imm, JALR 为 rs1+imm
+  // 异常优先级最高，发生异常时跳转到 mtvec
   private val dnpc = MuxCase(
     snpc, // 默认: PC + 4
     Seq(
+      // 不可处理的异常: 由 DPI 处理，dnpc 不重要（会停机）
+      isUnhandledException_noMem -> snpc,
+      // 可处理的异常: ecall 跳转到 mtvec
+      isEcall -> csru.io.out.mtvec,
+      // mret: 返回到 mepc
+      isMret -> csru.io.out.mepc,
+      // 正常指令
       (cu.io.out.npcOp === NPCOpType.NPC_JAL) -> aluResult,
       (cu.io.out.npcOp === NPCOpType.NPC_JALR) -> (aluResult & (~1.U(XLEN.W))),
-      (cu.io.out.npcOp === NPCOpType.NPC_BR && brTaken) -> aluResult,
-      (cu.io.out.npcOp === NPCOpType.NPC_ECALL) -> csru.io.out.mtvec,
-      (cu.io.out.npcOp === NPCOpType.NPC_MRET) -> csru.io.out.mepc
+      (cu.io.out.npcOp === NPCOpType.NPC_BR && brTaken) -> aluResult
     )
   )
 
@@ -134,6 +187,12 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   private val dnpc_reg = RegInit(0.U(XLEN.W))
   private val pc_reg = RegInit(0.U(XLEN.W))
   private val inst_reg = RegInit(0.U(InstLen.W))
+  // 异常相关锁存
+  private val hasException_reg = RegInit(false.B)
+  private val mcause_reg = RegInit(0.U(XLEN.W))
+  private val isEcall_reg = RegInit(false.B)
+  private val isMret_reg = RegInit(false.B)
+  private val a0_reg = RegInit(0.U(XLEN.W))
 
   // 指令执行完成信号
   // - 非内存指令：在 inst_wait 状态且 ifu.io.out.fire 时完成
@@ -154,6 +213,12 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
         dnpc_reg := dnpc
         pc_reg := pc
         inst_reg := inst
+        // 锁存异常信息（用于内存指令在 mem_wait 状态使用）
+        hasException_reg := hasException_noMem
+        mcause_reg := mcause_noMem
+        isEcall_reg := isEcall
+        isMret_reg := isMret
+        a0_reg := rfu.io.out.commit.gpr(10) // 锁存 a0 寄存器的值，用于 ebreak 停机
         when(cu.io.out.memEn) {
           state := State.mem_wait
         }.otherwise {
@@ -173,13 +238,30 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
     }
   }
 
+  /* ========== 异常处理（内存指令需要合并 LSU 异常）========== */
+  // 内存指令的最终异常状态（合并 IFU/CU 和 LSU 的异常）
+  // 优先级: IFU > CU > LSU
+  private val hasException_mem = hasException_reg || lsuHasException
+  private val mcause_mem = Mux(hasException_reg, mcause_reg, lsuMcause)
+
+  // 最终的异常状态（根据指令类型选择）
+  private val finalHasException = Mux(inst_complete_no_mem, hasException_noMem, hasException_mem)
+  private val finalMcause = Mux(inst_complete_no_mem, mcause_noMem, mcause_mem)
+  private val finalIsEcall = Mux(inst_complete_no_mem, isEcall, isEcall_reg)
+  private val finalIsMret = Mux(inst_complete_no_mem, isMret, isMret_reg)
+
+  // 不可处理的异常（需要调用 DPI）
+  private val isUnhandledException = finalHasException && !finalIsEcall
+
   /* ========== 寄存器堆/CSR 写入门控 ========== */
-  // 只有在指令执行完成时才真正写入寄存器堆
-  rfu.io.in.wen := rfWenFromCU && inst_complete
+  // 只有在指令执行完成且无不可处理异常时才写入寄存器堆
+  rfu.io.in.wen := rfWenFromCU && inst_complete && !isUnhandledException
   // CSR 写入也需要门控
-  csru.io.in.wen := cu.io.out.csrWen && inst_complete
-  csru.io.in.isEcall := cu.io.out.isEcall && inst_complete
-  csru.io.in.isMret := cu.io.out.isMret && inst_complete
+  csru.io.in.wen := cu.io.out.csrWen && inst_complete && !isUnhandledException
+  // 异常处理：ecall 时写入 mepc 和 mcause
+  csru.io.in.hasException := finalIsEcall && inst_complete
+  csru.io.in.mcause := finalMcause
+  csru.io.in.isMret := finalIsMret && inst_complete
 
   /* ========== IFU 连接 ========== */
   ifu.io.step := io.step
@@ -197,19 +279,13 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   lsu.io.out.ready := (state === State.mem_wait)
   lsu.io.dcache <> io.dcache
 
-  /* ========== EBREAK DPI 调用 ========== */
-  // 只在指令执行完成且是 ebreak 指令时触发
-  // ebreak 不是内存指令，所以只会在 inst_complete_no_mem 时触发
-  ebreakDpi.io.en := inst_complete_no_mem && cu.io.out.isEbreak
-  ebreakDpi.io.pc := pc
-  ebreakDpi.io.a0 := rfu.io.out.commit.gpr(10) // $a0 = x10, 作为返回值
-
-  /* ========== Invalid Instruction DPI 调用 ========== */
-  // 只在指令执行完成且是无效指令时触发
-  // 无效指令也只会在 inst_complete_no_mem 时触发
-  invalidInstDpi.io.en := inst_complete_no_mem && cu.io.out.invalidInst
-  invalidInstDpi.io.pc := pc
-  invalidInstDpi.io.inst := inst
+  /* ========== 异常 DPI 调用 ========== */
+  // 不可处理的异常调用 DPI（包括 breakpoint、非法指令、访存异常等）
+  // AM 停机约定: li a0, xxx; ebreak - a0=0 表示成功，a0!=0 表示失败
+  exceptionDpi.io.en_i := inst_complete && isUnhandledException
+  exceptionDpi.io.pc_i := Mux(inst_complete_no_mem, pc, pc_reg)
+  exceptionDpi.io.mcause_i := finalMcause
+  exceptionDpi.io.a0_i := Mux(inst_complete_no_mem, rfu.io.out.commit.gpr(10), a0_reg)
 
   /* ========== Commit 输出 (供 difftest) ========== */
   // 非内存指令在 inst_wait 状态完成，使用组合逻辑值

@@ -13,9 +13,10 @@ class CSRUInputBundle extends Bundle with HasCoreParameter with HasCSRParameter 
   val op       = Output(CSROpType())
   val wen      = Output(Bool())
   val rs1_data = Output(UInt(XLEN.W))
-  // ECALL/MRET 控制
-  val isEcall  = Output(Bool())
-  val isMret   = Output(Bool())
+  // 异常处理
+  val hasException = Output(Bool())  // 发生异常（需要写入 mepc/mcause）
+  val mcause   = Output(UInt(XLEN.W)) // 异常原因
+  val isMret   = Output(Bool())       // mret 指令（从异常返回）
   val pc       = Output(UInt(XLEN.W)) // 用于保存到 mepc
 }
 
@@ -98,11 +99,11 @@ class CSRU extends Module with HasCoreParameter with HasCSRParameter {
     when(io.in.addr === MCAUSE.U) { mcause := csrWdata }
   }
 
-  // ==================== ECALL 异常处理 ====================
-  // ECALL: mepc = pc, mcause = 11 (Environment call from M-mode)
-  when(io.in.isEcall) {
+  // ==================== 异常处理 ====================
+  // 发生异常时: mepc = pc, mcause = 异常原因
+  when(io.in.hasException) {
     mepc   := io.in.pc
-    mcause := 11.U // Environment call from M-mode
+    mcause := io.in.mcause
   }
 
   // ==================== 异常跳转地址输出 ====================
@@ -126,15 +127,15 @@ class CSRU extends Module with HasCoreParameter with HasCSRParameter {
     mtvec
   )
   
-  // mepc bypass: 可能被 ECALL 或普通 CSR 写入修改
+  // mepc bypass: 可能被异常或普通 CSR 写入修改
   io.out.commit.mepc := MuxCase(mepc, Seq(
-    io.in.isEcall -> io.in.pc,  // ECALL: mepc = pc
+    io.in.hasException -> io.in.pc,  // 异常: mepc = pc
     (io.in.wen && (io.in.addr === MEPC.U)) -> csrWdata
   ))
   
-  // mcause bypass: 可能被 ECALL 或普通 CSR 写入修改
+  // mcause bypass: 可能被异常或普通 CSR 写入修改
   io.out.commit.mcause := MuxCase(mcause, Seq(
-    io.in.isEcall -> 11.U,  // ECALL: mcause = 11
+    io.in.hasException -> io.in.mcause,  // 异常: mcause = 异常原因
     (io.in.wen && (io.in.addr === MCAUSE.U)) -> csrWdata
   ))
   

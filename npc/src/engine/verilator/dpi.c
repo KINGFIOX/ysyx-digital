@@ -16,12 +16,14 @@ void pmem_write_dpi(int en, int addr, int strb, int data) {
   }
 }
 
-void ebreak_dpi(int en, int pc, int a0) {
+void exception_dpi(int en, int pc, int mcause, int a0) {
   if (!en) return;
-  NPCTRAP((vaddr_t)pc, a0);
-}
-
-void invalid_inst_dpi(int en, int pc, int inst) {
-  if (!en) return;
-  INV((vaddr_t)pc);
+  switch (mcause) {
+    case 2:
+      INV((vaddr_t)pc);
+      break;
+    default:
+      NPCTRAP((vaddr_t)pc, a0);
+      break;
+  }
 }
