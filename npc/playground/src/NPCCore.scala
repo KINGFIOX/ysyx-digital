@@ -14,20 +14,22 @@ import firrtl.options.Stage
 // 2. 组合逻辑电路
 // 3. 状态机
 // 4. 连线
-class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
+class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with HasRegFileParameter {
   val io = IO(new Bundle {
     val step = Input(Bool())
     val commit = Output(new CommitBundle)
-    val icache = new AXI4LiteMasterIO(new AXI4LiteParams)
+    val icache = new AXI4LiteMasterIO(params)
+    val dcache = new AXI4LiteMasterIO(params)
   })
 
   /* ========== 实例化各模块 ========== */
-  private val ifu = Module(new IFU)
+  private val ifu = Module(new IFU(params))
   private val cu = Module(new CU)
   private val igu = Module(new IGU)
   private val rfu = Module(new RFU)
   private val alu = Module(new ALU)
   private val bru = Module(new BRU)
+  private val lsu = Module(new LSU(params))
   private val csru = Module(new CSRU)
   private val ebreakDpi = Module(new DpiEbreak)
   private val invalidInstDpi = Module(new DpiInvalidInst)
@@ -93,11 +95,12 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
   private val csrData = csru.io.out.rdata
 
   /* ========== 写回数据选择 ========== */
+  private val memData = lsu.io.out.bits.rdata
   private val wbData = MuxCase(
     0.U,
     Seq(
       (cu.io.out.wbSel === WBSel.WB_ALU) -> aluResult,
-      // TODO: mem
+      (cu.io.out.wbSel === WBSel.WB_MEM) -> memData,
       (cu.io.out.wbSel === WBSel.WB_PC4) -> snpc,
       (cu.io.out.wbSel === WBSel.WB_CSR) -> csrData
     )
@@ -126,16 +129,23 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
   object State extends ChiselEnum {
     val idle,       // 空闲，等待 step 信号
         inst_wait,  // 等待 IFU 取指完成
+        mem_wait,   // 等待 LSU 内存操作完成
         dnpc_send   // 等待 dnpc 发送给 IFU
         = Value
   }
   private val state = RegInit(State.idle)
   dontTouch(state)
 
-  // 指令执行完成信号：IFU 输出有效且被接收
-  private val inst_complete = (state === State.inst_wait) && ifu.io.out.fire
-  // dnpc 发送完成信号
-  private val dnpc_sent = (state === State.dnpc_send) && ifu.io.in.fire
+  // 保存控制信号（因为 inst_wait 后 inst 可能变化，需要锁存 memEn）
+  private val memEn_reg = RegInit(false.B)
+  private val wbSel_reg = RegInit(WBSel.WB_ALU)
+
+  // 指令执行完成信号
+  // - 非内存指令：在 inst_wait 状态且 ifu.io.out.fire 时完成
+  // - 内存指令：在 mem_wait 状态且 lsu.io.out.fire 时完成
+  private val inst_complete_no_mem = (state === State.inst_wait) && ifu.io.out.fire && !cu.io.out.memEn
+  private val inst_complete_mem = (state === State.mem_wait) && lsu.io.out.fire
+  private val inst_complete = inst_complete_no_mem || inst_complete_mem
 
   switch(state) {
     is(State.idle) {
@@ -145,6 +155,18 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
     }
     is(State.inst_wait) {
       when(ifu.io.out.fire) {
+        // 锁存控制信号
+        memEn_reg := cu.io.out.memEn
+        wbSel_reg := cu.io.out.wbSel
+        when(cu.io.out.memEn) {
+          state := State.mem_wait
+        }.otherwise {
+          state := State.dnpc_send
+        }
+      }
+    }
+    is(State.mem_wait) {
+      when(lsu.io.out.fire) {
         state := State.dnpc_send
       }
     }
@@ -169,6 +191,15 @@ class NPCCore extends Module with HasCoreParameter with HasRegFileParameter {
   ifu.io.in.valid := (state === State.dnpc_send)            // 在 dnpc_send 状态发送 dnpc
   ifu.io.in.bits.dnpc := dnpc
   ifu.io.icache <> io.icache
+
+  /* ========== LSU 连接 ========== */
+  lsu.io.in.valid := (state === State.inst_wait) && ifu.io.out.fire && cu.io.out.memEn
+  lsu.io.in.bits.op := cu.io.out.memOp
+  lsu.io.in.bits.addr := aluResult              // 地址由 ALU 计算 (rs1 + imm)
+  lsu.io.in.bits.wdata := rs2Data               // Store 数据来自 rs2
+  lsu.io.in.bits.en := cu.io.out.memEn
+  lsu.io.out.ready := (state === State.mem_wait)
+  lsu.io.dcache <> io.dcache
 
   /* ========== EBREAK DPI 调用 ========== */
   // 只在指令执行完成且是 ebreak 指令时触发

@@ -7,9 +7,13 @@ int pmem_read_dpi(int en, int addr, int len) {
   return (int)paddr_read((paddr_t)addr, len);
 }
 
-void pmem_write_dpi(int en, int addr, int len, int data) {
+void pmem_write_dpi(int en, int addr, int strb, int data) {
   if (!en) return;
-  paddr_write((paddr_t)addr, len, (word_t)data);
+  for (int i = 0; i < 4; i++) {
+    if ((strb >> i) & 1) {
+      paddr_write((paddr_t)(addr + i), 1, (word_t)((data >> (i * 8)) & 0xFF));
+    }
+  }
 }
 
 void ebreak_dpi(int en, int pc, int a0) {

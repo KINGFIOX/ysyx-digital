@@ -19,21 +19,21 @@ class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter
   val csr   = new CSRUCommitBundle
 }
 
-class NPCSoC extends Module {
+class NPCSoC(params: AXI4LiteParams) extends Module {
   val io = IO(new Bundle {
     val step = Input(Bool())
     val commit = new CommitBundle
   })
 
-  val core = Module(new NPCCore)
+  val core = Module(new NPCCore(params))
   io.commit := core.io.commit
   core.io.step := io.step
 
   // AXI4-Lite Crossbar 配置
   // 地址映射：内存从 0x80000000 开始，大小为 256MB (0x10000000)
   val xbarParams = AXI4LiteXBarParams(
-    axi = AXI4LiteParams(),
-    numMasters = 1, // 只有 IFU 作为 master
+    axi = params,
+    numMasters = 2, // IFU (icache) 和 LSU (dcache) 作为 master
     numSlaves = 1,  // 只有一个内存 slave
     addrMap = Seq(
       (BigInt(0x80000000L), BigInt(0x10000000L)) // 内存地址空间
@@ -42,11 +42,12 @@ class NPCSoC extends Module {
 
   val xbar = Module(new AXI4LiteXBar(xbarParams))
 
-  // 连接 core 的 icache 到 xbar 的 master 端口
+  // 连接 core 的 icache 和 dcache 到 xbar 的 master 端口
   xbar.io.masters(0) <> core.io.icache
+  xbar.io.masters(1) <> core.io.dcache
 
   // 创建内存 slave
-  val memSlave = Module(new AXI4LitePmemSlave)
+  val memSlave = Module(new AXI4LitePmemSlave(params))
 
   // 连接 xbar 的 slave 端口到内存 slave
   xbar.io.slaves(0) <> memSlave.io.axi
@@ -62,5 +63,5 @@ object NPCSoC extends App {
       "locationInfoStyle=wrapInAtSquareBracket"
     ).reduce(_ + "," + _)
   )
-  _root_.circt.stage.ChiselStage.emitSystemVerilogFile(new NPCSoC, args, firtoolOptions)
+  _root_.circt.stage.ChiselStage.emitSystemVerilogFile(new NPCSoC(AXI4LiteParams()), args, firtoolOptions)
 }

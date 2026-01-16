@@ -7,22 +7,34 @@ import general.AXI4LiteMasterIO
 import general.AXI4LiteParams
 import general.AXI4LiteResp
 
-class IFOutputBundle extends Bundle with HasCoreParameter {
-  val inst = Output(UInt(InstLen.W)) //
-  val pc   = Output(UInt(XLEN.W))    // the pc of the instruction
-  val isValid = Output(Bool()) // this is a valid instruct
+class IFUOutputBundle extends Bundle with HasCoreParameter {
+  val inst = UInt(InstLen.W) //
+  val pc   = UInt(XLEN.W)    // the pc of the instruction
+  val isValid = Bool() // this is a valid instruct, used for pipeline flush control
+  val exception = IFUExceptionType()
 }
 
 class IFInputBundle extends Bundle with HasCoreParameter {
-  val dnpc = Output(UInt(XLEN.W)) // 这个是计算出来的下地址
+  val dnpc = UInt(XLEN.W) // 这个是计算出来的下地址
 }
 
-class IFU extends Module with HasCoreParameter {
+// mcause:
+// 0. instruction address misaligned
+// 1. instruction access fault
+// 12. instruction page fault
+object IFUExceptionType extends ChiselEnum {
+  val ifu_X,
+    ifu_INSTRUCTION_ADDRESS_MISALIGNED, ifu_INSTRUCTION_ACCESS_FAULT,
+    ifu_INSTRUCTION_PAGE_FAULT
+    = Value
+}
+
+class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   val io = IO(new Bundle {
-    val out = DecoupledIO(new IFOutputBundle)
+    val out = DecoupledIO(new IFUOutputBundle)
     val in  = Flipped(DecoupledIO(new IFInputBundle))
     val step = Input(Bool())
-    val icache = new AXI4LiteMasterIO(new AXI4LiteParams)
+    val icache = new AXI4LiteMasterIO(params)
   })
 
   // dummy write channel
@@ -55,6 +67,7 @@ class IFU extends Module with HasCoreParameter {
   io.out.bits.inst := inst_reg
   io.out.bits.pc := pc_reg
   io.out.bits.isValid := (state === State.allowin_wait) && (resp_reg === AXI4LiteResp.OKAY)
+  io.out.bits.exception := IFUExceptionType.ifu_X
   io.in.ready := (state === State.done_wait)  // 在 done_wait 状态接收 dnpc
 
   switch(state) {
@@ -88,17 +101,4 @@ class IFU extends Module with HasCoreParameter {
     }
   }
 
-}
-
-object IFU extends App {
-  val firtoolOptions = Array(
-    "--lowering-options=" + List(
-      // make yosys happy
-      // see https://github.com/llvm/circt/blob/main/docs/VerilogGeneration.md
-      "disallowLocalVariables",
-      "disallowPackedArrays",
-      "locationInfoStyle=wrapInAtSquareBracket"
-    ).reduce(_ + "," + _)
-  )
-  _root_.circt.stage.ChiselStage.emitSystemVerilogFile(new IFU, args, firtoolOptions)
 }
