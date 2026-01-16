@@ -82,8 +82,7 @@ void gen_logbuf(char *logbuf, size_t size, vaddr_t pc, vaddr_t snpc,
   memset(p, ' ', space_len); // 打印一些空格, 用来对齐的
   p += space_len;
 
-  bool ret =
-      disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
+  bool ret = disassemble(p, size - (p - logbuf), pc, (uint8_t *)&isa->inst, ilen);
   if (!ret) {
     invalid_inst(pc);
   }

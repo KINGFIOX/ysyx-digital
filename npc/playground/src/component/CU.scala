@@ -38,33 +38,33 @@ object CSROpType extends ChiselEnum {
 /** CU 输出的控制信号 */
 class CUOutputBundle extends Bundle with HasRegFileParameter {
   // ALU 控制
-  val aluOp       = Output(ALUOpType())
-  val aluSel1     = Output(ALUOp1Sel())
-  val aluSel2     = Output(ALUOp2Sel())
+  val aluOp       = ALUOpType()
+  val aluSel1     = ALUOp1Sel()
+  val aluSel2     = ALUOp2Sel()
   // 立即数类型
-  val immType     = Output(ImmType())
+  val immType     = ImmType()
   // 内存操作
-  val memOp       = Output(MemUOpType())
-  val memEn       = Output(Bool()) // 内存使能
+  val memOp       = MemUOpType()
+  val memEn       = Bool() // 内存使能
   // 写回控制
-  val wbSel       = Output(WBSel())
-  val rfWen       = Output(Bool()) // 寄存器写使能
+  val wbSel       = WBSel()
+  val rfWen       = Bool() // 寄存器写使能
   // 分支控制
-  val bruOp       = Output(BRUOpType())
-  val npcOp       = Output(NPCOpType())
+  val bruOp       = BRUOpType()
+  val npcOp       = NPCOpType()
   // CSR 控制
-  val csrOp       = Output(CSROpType())
-  val csrWen      = Output(Bool()) // CSR 写使能
+  val csrOp       = CSROpType()
+  val csrWen      = Bool() // CSR 写使能
   // 特殊指令
-  val isEbreak    = Output(Bool())
-  val isEcall     = Output(Bool())
-  val isMret      = Output(Bool())
+  val isEbreak    = Bool()
+  val isEcall     = Bool()
+  val isMret      = Bool()
   // 无效指令
-  val invalidInst = Output(Bool())
+  val invalidInst = Bool()
 }
 
 class CUInputBundle extends Bundle with HasCoreParameter {
-  val inst = Output(UInt(InstLen.W))
+  val inst = UInt(InstLen.W)
 }
 
 class CU extends Module with HasCoreParameter with HasRegFileParameter {
@@ -134,37 +134,37 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   when(inst === SLTI) { iInst(ALUOpType.alu_SLT) }
   when(inst === SLTIU) { iInst(ALUOpType.alu_SLTU) }
 
-  /* ---------- Load: lw rd, offset(rs1) ---------- */
-  private def lInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
-    io.out.aluOp       := ALUOpType.alu_ADD
-    io.out.aluSel1     := ALUOp1Sel.OP1_RS1
-    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
-    io.out.immType     := ImmType.IMM_I
-    io.out.memOp       := op
-    io.out.memEn       := true.B
-    io.out.wbSel       := WBSel.WB_MEM
-    io.out.rfWen       := true.B
-    io.out.invalidInst := false.B
-  }
-  when(inst === LB) { lInst(MemUOpType.mem_LB) }
-  when(inst === LH) { lInst(MemUOpType.mem_LH) }
-  when(inst === LW) { lInst(MemUOpType.mem_LW) }
-  when(inst === LBU) { lInst(MemUOpType.mem_LBU) }
-  when(inst === LHU) { lInst(MemUOpType.mem_LHU) }
+  // /* ---------- Load: lw rd, offset(rs1) ---------- */
+  // private def lInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
+  //   io.out.aluOp       := ALUOpType.alu_ADD
+  //   io.out.aluSel1     := ALUOp1Sel.OP1_RS1
+  //   io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+  //   io.out.immType     := ImmType.IMM_I
+  //   io.out.memOp       := op
+  //   io.out.memEn       := true.B
+  //   io.out.wbSel       := WBSel.WB_MEM
+  //   io.out.rfWen       := true.B
+  //   io.out.invalidInst := false.B
+  // }
+  // when(inst === LB) { lInst(MemUOpType.mem_LB) }
+  // when(inst === LH) { lInst(MemUOpType.mem_LH) }
+  // when(inst === LW) { lInst(MemUOpType.mem_LW) }
+  // when(inst === LBU) { lInst(MemUOpType.mem_LBU) }
+  // when(inst === LHU) { lInst(MemUOpType.mem_LHU) }
 
-  /* ---------- Store: sw rs2, offset(rs1) ---------- */
-  private def sInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
-    io.out.aluOp       := ALUOpType.alu_ADD
-    io.out.aluSel1     := ALUOp1Sel.OP1_RS1
-    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
-    io.out.immType     := ImmType.IMM_S
-    io.out.memOp       := op
-    io.out.memEn       := true.B
-    io.out.invalidInst := false.B
-  }
-  when(inst === SB) { sInst(MemUOpType.mem_SB) }
-  when(inst === SH) { sInst(MemUOpType.mem_SH) }
-  when(inst === SW) { sInst(MemUOpType.mem_SW) }
+  // /* ---------- Store: sw rs2, offset(rs1) ---------- */
+  // private def sInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
+  //   io.out.aluOp       := ALUOpType.alu_ADD
+  //   io.out.aluSel1     := ALUOp1Sel.OP1_RS1
+  //   io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+  //   io.out.immType     := ImmType.IMM_S
+  //   io.out.memOp       := op
+  //   io.out.memEn       := true.B
+  //   io.out.invalidInst := false.B
+  // }
+  // when(inst === SB) { sInst(MemUOpType.mem_SB) }
+  // when(inst === SH) { sInst(MemUOpType.mem_SH) }
+  // when(inst === SW) { sInst(MemUOpType.mem_SW) }
 
   /* ---------- Branch: beq rs1, rs2, offset ---------- */
   private def bInst(op: BRUOpType.Type): Unit /*无返回值*/ = {

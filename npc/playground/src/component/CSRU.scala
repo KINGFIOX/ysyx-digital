@@ -109,11 +109,36 @@ class CSRU extends Module with HasCoreParameter with HasCSRParameter {
   io.out.mtvec := mtvec // ECALL 跳转到 mtvec
   io.out.mepc  := mepc  // MRET 返回到 mepc
 
-  // ==================== Commit 输出 ====================
-  io.out.commit.mstatus   := mstatus
-  io.out.commit.mtvec     := mtvec
-  io.out.commit.mepc      := mepc
-  io.out.commit.mcause    := mcause
+  // ==================== Commit 输出 (带 bypass) ====================
+  // 如果当前周期正在写入 CSR，commit 输出应该是新值
+  
+  // mstatus bypass
+  io.out.commit.mstatus := Mux(
+    io.in.wen && (io.in.addr === MSTATUS.U),
+    csrWdata,
+    mstatus
+  )
+  
+  // mtvec bypass
+  io.out.commit.mtvec := Mux(
+    io.in.wen && (io.in.addr === MTVEC.U),
+    csrWdata,
+    mtvec
+  )
+  
+  // mepc bypass: 可能被 ECALL 或普通 CSR 写入修改
+  io.out.commit.mepc := MuxCase(mepc, Seq(
+    io.in.isEcall -> io.in.pc,  // ECALL: mepc = pc
+    (io.in.wen && (io.in.addr === MEPC.U)) -> csrWdata
+  ))
+  
+  // mcause bypass: 可能被 ECALL 或普通 CSR 写入修改
+  io.out.commit.mcause := MuxCase(mcause, Seq(
+    io.in.isEcall -> 11.U,  // ECALL: mcause = 11
+    (io.in.wen && (io.in.addr === MCAUSE.U)) -> csrWdata
+  ))
+  
+  // mcycle 不需要 bypass (只读)
   io.out.commit.mcycle    := mcycle(31, 0)
   io.out.commit.mcycleh   := mcycle(63, 32)
   io.out.commit.mvendorid := mvendorid

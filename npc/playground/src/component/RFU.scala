@@ -43,8 +43,15 @@ class RFU extends Module with HasCoreParameter with HasRegFileParameter {
   // 写入: x0 不可写
   when(io.in.wen && (io.in.rd_i =/= 0.U)) { rf(io.in.rd_i) := io.in.wdata }
 
-  // 导出所有寄存器用于 difftest
-  io.out.commit.gpr := rf
+  // 导出所有寄存器用于 difftest (带 bypass)
+  // 如果当前周期正在写入某个寄存器，commit 输出应该是新值
+  for (i <- 0 until NRReg) {
+    io.out.commit.gpr(i) := Mux(
+      io.in.wen && (io.in.rd_i === i.U) && (i.U =/= 0.U),
+      io.in.wdata,  // bypass: 输出即将写入的新值
+      rf(i)         // 否则输出寄存器当前值
+    )
+  }
 }
 
 object RFU extends App {

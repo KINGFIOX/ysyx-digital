@@ -168,13 +168,39 @@ static void sync_csr_to_cpu() {
   cpu.csr[MCAUSE] = top->io_commit_csr_mcause;
 }
 
+// extern "C" bool npc_core_step(Decode *s) {
+//   top->io_step = 1; top->eval(); // 拉高 step 信号
+//   read_commit_to_decode(s); // 组合逻辑的求值
+//   cpu.pc = s->dnpc; //
+//   tick(); // 更新寄存器
+//   sync_gpr_to_cpu(); // 读出写入后的寄存器
+//   sync_csr_to_cpu(); // 读出写入后的 CSR
+//   top->io_step = 0; top->eval(); // 拉低 step 信号
+//   return true;
+// }
+
 extern "C" bool npc_core_step(Decode *s) {
-  top->io_step = 1; top->eval(); // 拉高 step 信号
-  read_commit_to_decode(s); // 组合逻辑的求值
-  cpu.pc = s->dnpc; //
-  tick(); // 更新寄存器
-  sync_gpr_to_cpu(); // 读出写入后的寄存器
-  sync_csr_to_cpu(); // 读出写入后的 CSR
-  top->io_step = 0; top->eval(); // 拉低 step 信号
+  top->io_step = 1;
+
+  // 运行直到 commit.valid 为真
+  const int MAX_CYCLES = 1000; // 防止死循环
+  int cycles = 0;
+  do {
+    tick();
+    cycles++;
+    if (cycles >= MAX_CYCLES) {
+      Log("Warning: npc_core_step exceeded %d cycles without commit", MAX_CYCLES);
+      return false;
+    }
+  } while (!top->io_commit_valid);
+
+  // 读取 commit 信息
+  read_commit_to_decode(s);
+  cpu.pc = s->dnpc;
+  sync_gpr_to_cpu();
+  sync_csr_to_cpu();
+
+  top->io_step = 0;
+  top->eval();
   return true;
 }

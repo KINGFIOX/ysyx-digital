@@ -10,19 +10,19 @@ import general.{AXI4LiteXBar, AXI4LiteXBarParams, AXI4LiteParams}
 
 /** 用来给 Verilator 暴露提交信息, 便于在 C++ 侧采样做差分测试 */
 class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter with HasCSRParameter {
-  val valid = Output(Bool())
-  val pc    = Output(UInt(XLEN.W))
-  val dnpc  = Output(UInt(XLEN.W))
-  val inst  = Output(UInt(InstLen.W))
-  val gpr   = Output(Vec(NRReg, UInt(XLEN.W)))
+  val valid = Bool()
+  val pc    = UInt(XLEN.W)
+  val dnpc  = UInt(XLEN.W)
+  val inst  = UInt(InstLen.W)
+  val gpr   = Vec(NRReg, UInt(XLEN.W))
   // CSR 提交信息
-  val csr   = Output(new CSRUCommitBundle)
+  val csr   = new CSRUCommitBundle
 }
 
 class NPCSoC extends Module {
   val io = IO(new Bundle {
     val step = Input(Bool())
-    val commit = Output(new CommitBundle)
+    val commit = new CommitBundle
   })
 
   val core = Module(new NPCCore)

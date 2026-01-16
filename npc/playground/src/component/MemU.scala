@@ -44,4 +44,3 @@ class MemU extends Module with HasCoreParameter {
   io.out.rdata := 0.U
 
 }
-

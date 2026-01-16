@@ -39,7 +39,7 @@ class IFU extends Module with HasCoreParameter {
   private val resp_reg = RegInit(AXI4LiteResp.OKAY)
 
   object State extends ChiselEnum {
-    // avail_wait: next stage is allowin
+    // avail_wait: next stage is allowin -> inst_wait
     val idle, ar_wait, r_wait, allowin_wait, done_wait = Value
   }
   private val state = RegInit(State.idle)
@@ -55,7 +55,7 @@ class IFU extends Module with HasCoreParameter {
   io.out.bits.inst := inst_reg
   io.out.bits.pc := pc_reg
   io.out.bits.isValid := (state === State.allowin_wait) && (resp_reg === AXI4LiteResp.OKAY)
-  io.in.ready := (state === State.done_wait)
+  io.in.ready := (state === State.done_wait)  // 在 done_wait 状态接收 dnpc
 
   switch(state) {
     is(State.idle) {
