@@ -48,7 +48,7 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
 
   private val pc_reg = RegInit("h8000_0000".U(XLEN.W)) // pc_reg
   private val inst_reg = RegInit(0.U(InstLen.W)) // IR
-  private val resp_reg = RegInit(AXI4LiteResp.OKAY)
+  private val exception_reg = RegInit(IFUExceptionType.ifu_X)
 
   object State extends ChiselEnum {
     // avail_wait: next stage is allowin -> inst_wait
@@ -56,8 +56,11 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   }
   private val state = RegInit(State.idle)
 
+  // 检查指令地址是否对齐 (4 字节对齐)
+  private val pcMisaligned = pc_reg(1, 0) =/= 0.U
+
   // bus
-  io.icache.ar.valid := (state === State.ar_wait)
+  io.icache.ar.valid := (state === State.ar_wait) && !pcMisaligned
   io.icache.ar.bits.prot := Cat(true.B/*instr*/, false.B/*secure*/, true.B/*priviledge*/)
   io.icache.r.ready := (state === State.r_wait)
   io.icache.ar.bits.addr := pc_reg
@@ -66,18 +69,24 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   io.out.valid := (state === State.allowin_wait)
   io.out.bits.inst := inst_reg
   io.out.bits.pc := pc_reg
-  io.out.bits.isValid := (state === State.allowin_wait) && (resp_reg === AXI4LiteResp.OKAY)
-  io.out.bits.exception := IFUExceptionType.ifu_X
+  io.out.bits.isValid := (state === State.allowin_wait) && (exception_reg === IFUExceptionType.ifu_X)
+  io.out.bits.exception := exception_reg
   io.in.ready := (state === State.done_wait)  // 在 done_wait 状态接收 dnpc
 
   switch(state) {
     is(State.idle) {
       when(io.step) {
         state := State.ar_wait
+        exception_reg := IFUExceptionType.ifu_X // 重置异常状态
       }
     }
     is(State.ar_wait) {
-      when(io.icache.ar.fire) {
+      when(pcMisaligned) {
+        // 指令地址未对齐异常，不发起总线请求，直接进入 allowin_wait
+        state := State.allowin_wait
+        exception_reg := IFUExceptionType.ifu_INSTRUCTION_ADDRESS_MISALIGNED
+        inst_reg := 0.U // 无效指令
+      }.elsewhen(io.icache.ar.fire) {
         state := State.r_wait
       }
     }
@@ -85,7 +94,9 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
       when(io.icache.r.fire) {
         state := State.allowin_wait
         inst_reg := io.icache.r.bits.data
-        resp_reg := io.icache.r.bits.resp
+        when(io.icache.r.bits.resp =/= AXI4LiteResp.OKAY) {
+          exception_reg := IFUExceptionType.ifu_INSTRUCTION_ACCESS_FAULT
+        }
       }
     }
     is(State.allowin_wait) {
@@ -97,6 +108,7 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
       when(io.in.fire) {
         state := State.idle
         pc_reg := io.in.bits.dnpc
+        exception_reg := IFUExceptionType.ifu_X // 重置异常状态
       }
     }
   }

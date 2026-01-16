@@ -134,37 +134,37 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   when(inst === SLTI) { iInst(ALUOpType.alu_SLT) }
   when(inst === SLTIU) { iInst(ALUOpType.alu_SLTU) }
 
-  // /* ---------- Load: lw rd, offset(rs1) ---------- */
-  // private def lInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
-  //   io.out.aluOp       := ALUOpType.alu_ADD
-  //   io.out.aluSel1     := ALUOp1Sel.OP1_RS1
-  //   io.out.aluSel2     := ALUOp2Sel.OP2_IMM
-  //   io.out.immType     := ImmType.IMM_I
-  //   io.out.memOp       := op
-  //   io.out.memEn       := true.B
-  //   io.out.wbSel       := WBSel.WB_MEM
-  //   io.out.rfWen       := true.B
-  //   io.out.invalidInst := false.B
-  // }
-  // when(inst === LB) { lInst(MemUOpType.mem_LB) }
-  // when(inst === LH) { lInst(MemUOpType.mem_LH) }
-  // when(inst === LW) { lInst(MemUOpType.mem_LW) }
-  // when(inst === LBU) { lInst(MemUOpType.mem_LBU) }
-  // when(inst === LHU) { lInst(MemUOpType.mem_LHU) }
+  /* ---------- Load: lw rd, offset(rs1) ---------- */
+  private def lInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
+    io.out.aluOp       := ALUOpType.alu_ADD
+    io.out.aluSel1     := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.immType     := ImmType.IMM_I
+    io.out.memOp       := op
+    io.out.memEn       := true.B
+    io.out.wbSel       := WBSel.WB_MEM
+    io.out.rfWen       := true.B
+    io.out.invalidInst := false.B
+  }
+  when(inst === LB) { lInst(MemUOpType.mem_LB) }
+  when(inst === LH) { lInst(MemUOpType.mem_LH) }
+  when(inst === LW) { lInst(MemUOpType.mem_LW) }
+  when(inst === LBU) { lInst(MemUOpType.mem_LBU) }
+  when(inst === LHU) { lInst(MemUOpType.mem_LHU) }
 
-  // /* ---------- Store: sw rs2, offset(rs1) ---------- */
-  // private def sInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
-  //   io.out.aluOp       := ALUOpType.alu_ADD
-  //   io.out.aluSel1     := ALUOp1Sel.OP1_RS1
-  //   io.out.aluSel2     := ALUOp2Sel.OP2_IMM
-  //   io.out.immType     := ImmType.IMM_S
-  //   io.out.memOp       := op
-  //   io.out.memEn       := true.B
-  //   io.out.invalidInst := false.B
-  // }
-  // when(inst === SB) { sInst(MemUOpType.mem_SB) }
-  // when(inst === SH) { sInst(MemUOpType.mem_SH) }
-  // when(inst === SW) { sInst(MemUOpType.mem_SW) }
+  /* ---------- Store: sw rs2, offset(rs1) ---------- */
+  private def sInst(op: MemUOpType.Type): Unit /*无返回值*/ = {
+    io.out.aluOp       := ALUOpType.alu_ADD
+    io.out.aluSel1     := ALUOp1Sel.OP1_RS1
+    io.out.aluSel2     := ALUOp2Sel.OP2_IMM
+    io.out.immType     := ImmType.IMM_S
+    io.out.memOp       := op
+    io.out.memEn       := true.B
+    io.out.invalidInst := false.B
+  }
+  when(inst === SB) { sInst(MemUOpType.mem_SB) }
+  when(inst === SH) { sInst(MemUOpType.mem_SH) }
+  when(inst === SW) { sInst(MemUOpType.mem_SW) }
 
   /* ---------- Branch: beq rs1, rs2, offset ---------- */
   private def bInst(op: BRUOpType.Type): Unit /*无返回值*/ = {

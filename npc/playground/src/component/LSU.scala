@@ -192,8 +192,8 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
 
   // ========== AXI4-Lite 读通道信号 ==========
   io.dcache.ar.valid     := (read_state === ReadState.ar_wait)
-  io.dcache.ar.bits.addr := addr_reg
-  io.dcache.ar.bits.prot := 0.U  // 普通、安全、数据访问
+  io.dcache.ar.bits.addr := Cat(addr_reg(XLEN - 1, 2), 0.U(2.W))  // 字对齐地址
+  io.dcache.ar.bits.prot := Cat(false.B/*instr*/, false.B/*secure*/, true.B/*priviledge*/)
 
   io.dcache.r.ready := (read_state === ReadState.r_wait)
 
@@ -220,7 +220,7 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   // ========== AXI4-Lite 写通道信号 ==========
   // AW 和 W 通道并行发送，仅在未发送时置 valid
   io.dcache.aw.valid     := (write_state === WriteState.aw_w_wait) && !aw_sent
-  io.dcache.aw.bits.addr := addr_reg
+  io.dcache.aw.bits.addr := Cat(addr_reg(XLEN - 1, 2), 0.U(2.W))  // 字对齐地址
   io.dcache.aw.bits.prot := 0.U
 
   io.dcache.w.valid := (write_state === WriteState.aw_w_wait) && !w_sent
