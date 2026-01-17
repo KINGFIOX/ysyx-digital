@@ -158,7 +158,10 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
         } .otherwise {
           state := State.writeback
           csr_wen_reg := cu.io.out.csrWen
-          rd_v_reg := aluResult
+          rd_v_reg := MuxCase(0.U, Seq(
+              (cu.io.out.wbSel === WBSel.WB_ALU) -> aluResult,
+              (cu.io.out.wbSel === WBSel.WB_PC4) -> snpc,
+            ) )
         }
       }
     }
