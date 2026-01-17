@@ -53,7 +53,7 @@ class NPCSoC(params: AXI4LiteParams) extends Module {
   xbar.io.slaves(0) <> memSlave.io.axi
 }
 
-object NPCSoC extends App {
+object NPCSoC extends App with HasCoreParameter {
   val firtoolOptions = Array(
     "--lowering-options=" + List(
       // make yosys happy
@@ -63,5 +63,5 @@ object NPCSoC extends App {
       "locationInfoStyle=wrapInAtSquareBracket"
     ).reduce(_ + "," + _)
   )
-  _root_.circt.stage.ChiselStage.emitSystemVerilogFile(new NPCSoC(AXI4LiteParams()), args, firtoolOptions)
+  _root_.circt.stage.ChiselStage.emitSystemVerilogFile(new NPCSoC(AXI4LiteParams(addrWidth = XLEN, dataWidth = XLEN)), args, firtoolOptions)
 }

@@ -58,20 +58,13 @@ class CUOutputBundle extends Bundle with HasRegFileParameter {
   val aluOp       = ALUOpType()
   val aluSel1     = ALUOp1Sel()
   val aluSel2     = ALUOp2Sel()
-  // 立即数类型
-  val immType     = ImmType()
-  // 内存操作
-  val memOp       = MemUOpType()
-  val memEn       = Bool() // 内存使能
-  // 写回控制
-  val wbSel       = WBSel()
-  val rfWen       = Bool() // 寄存器写使能
+  val immType = ImmType() // imm
+  val memOp = MemUOpType(); val memEn = Bool() // mem
+  val wbSel = WBSel(); val rfWen = Bool() // write back
   // 分支控制
   val bruOp       = BRUOpType()
   val npcOp       = NPCOpType()
-  // CSR 控制
-  val csrOp       = CSROpType()
-  val csrWen      = Bool() // CSR 写使能
+  val csrOp = CSROpType(); val csrWen = Bool() // csr
   // 异常
   val exception = CUExceptionType()
 }

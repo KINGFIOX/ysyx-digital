@@ -30,20 +30,13 @@ trait HasCSRParameter {
   val MARCHID   = 0x0f12
 }
 
-trait HasDRAMParameter {
-  val DRAM_BASE = 0x8000_0000 // TODO:
-  val DRAM_SIZE = 0x4000_0000
-}
-
 /** @brief
   *   有 core 的一些参数
   */
 trait HasCoreParameter {
-  implicit val XLEN:      Int = 32 // 机器字长
-  implicit val InstLen:   Int = 32 // 指令字长
-  implicit val OpcodeLen: Int = 7
-  // val AddrBits  = XLEN // AddrBits is used in some cases
-  // val DataBits  = XLEN // 一个 word 有几个 bit
-  def dataBytes     = XLEN >> 3           // 一个 word 有几个字节  4
-  def dataBytesBits = log2Ceil(dataBytes) // 一个 word 有几个字节的位宽 2
+  val XLEN:      Int = 32 // 机器字长
+  val InstLen:   Int = 32 // 指令字长
+  val OpcodeLen: Int = 7
+  val dataBytes     = XLEN >> 3           // 一个 word 有几个字节  4
+  val dataBytesBits = log2Ceil(dataBytes) // 一个 word 有几个字节的位宽 2
 }

@@ -9,7 +9,7 @@ import general.AXI4LiteParams
 import general.AXI4LiteResp
 
 object MemUOpType extends ChiselEnum {
-  val mem_LB, mem_LH, mem_LW, mem_LBU, mem_LHU, mem_SB, mem_SH, mem_SW = Value
+  val mem_X, mem_LB, mem_LH, mem_LW, mem_LBU, mem_LHU, mem_SB, mem_SH, mem_SW = Value
 }
 
 // mcause:
@@ -32,7 +32,6 @@ class MEMUInputBundle extends Bundle with HasCoreParameter {
   val op    = MemUOpType()
   val wdata = UInt(XLEN.W)
   val addr  = UInt(XLEN.W)
-  val en    = Bool()
 }
 
 class MEMUOutputBundle extends Bundle with HasCoreParameter {
@@ -107,7 +106,7 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   // ========== 读状态机逻辑 ==========
   switch(read_state) {
     is(ReadState.idle) {
-      when(io.in.fire && isLoad && io.in.bits.en) {
+      when(io.in.fire && isLoad) {
         op_reg   := io.in.bits.op
         addr_reg := io.in.bits.addr
         when(loadMisaligned) {
@@ -143,7 +142,7 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   // ========== 写状态机逻辑 ==========
   switch(write_state) {
     is(WriteState.idle) {
-      when(io.in.fire && isStore && io.in.bits.en) {
+      when(io.in.fire && isStore) {
         op_reg    := io.in.bits.op
         addr_reg  := io.in.bits.addr
         wdata_reg := io.in.bits.wdata
