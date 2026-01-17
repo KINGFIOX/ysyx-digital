@@ -6,22 +6,22 @@ import common.HasCoreParameter
 import common.HasRegFileParameter
 
 class RFUOutputBundle extends Bundle with HasCoreParameter with HasRegFileParameter {
-  val rs1_v  = Output(UInt(XLEN.W))
-  val rs2_v  = Output(UInt(XLEN.W))
-  val commit = Output(new RFUCommitBundle)
+  val rs1_v  = UInt(XLEN.W)
+  val rs2_v  = UInt(XLEN.W)
+  val commit = new RFUCommitBundle
 }
 
 class RFUCommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter {
-  val gpr = Output(Vec(NRReg, UInt(XLEN.W)))
+  val gpr = Vec(NRReg, UInt(XLEN.W))
 }
 
 class RFUInputBundle extends Bundle with HasRegFileParameter with HasCoreParameter {
-  val rs1_i = Output(UInt(NRRegbits.W))
-  val rs2_i = Output(UInt(NRRegbits.W))
-  val rd_i  = Output(UInt(NRRegbits.W))
+  val rs1_i = UInt(NRRegbits.W)
+  val rs2_i = UInt(NRRegbits.W)
+  val rd_i  = UInt(NRRegbits.W)
   // write
-  val wdata = Output(UInt(XLEN.W))
-  val wen   = Output(Bool())
+  val wdata = UInt(XLEN.W)
+  val wen   = Bool()
 }
 
 /** @brief

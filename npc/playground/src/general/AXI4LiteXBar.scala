@@ -145,11 +145,11 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
   // ========================================================================
 
   // Track which slave each master's write is going to (for W channel routing)
-  val awPending = Seq.fill(p.numMasters)(RegInit(false.B))
-  val awTarget  = Seq.fill(p.numMasters)(RegInit(0.U(p.slaveIdW.W)))
+  private val awPending = Seq.fill(p.numMasters)(RegInit(false.B))
+  private val awTarget  = Seq.fill(p.numMasters)(RegInit(0.U(p.slaveIdW.W)))
 
   // AW arbiters: one per slave
-  val awArbs = Seq.fill(p.numSlaves)(Module(new RRArbiter(new AXI4LiteAWRouted(p), p.numMasters)))
+  private val awArbs = Seq.fill(p.numSlaves)(Module(new RRArbiter(new AXI4LiteAWRouted(p), p.numMasters)))
 
   for (m <- 0 until p.numMasters) { // master <-> arbiter
     val targetSlave = addrDecode(io.masters(m).aw.bits.addr)
@@ -180,7 +180,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
   }
 
   // Track master ID for B response routing (per slave)
-  val bReturnId = Seq.fill(p.numSlaves)(RegInit(0.U(p.masterIdW.W)))
+  private val bReturnId = Seq.fill(p.numSlaves)(RegInit(0.U(p.masterIdW.W)))
   for (s <- 0 until p.numSlaves) {
     when(awArbs(s).io.out.fire) {
       bReturnId(s) := awArbs(s).io.out.bits.src
@@ -191,7 +191,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
   // Write Data Channel (W): Master -> Slave
   // ========================================================================
 
-  val wArbs = Seq.fill(p.numSlaves)(Module(new RRArbiter(new AXI4LiteW(p.axi), p.numMasters)))
+  private val wArbs = Seq.fill(p.numSlaves)(Module(new RRArbiter(new AXI4LiteW(p.axi), p.numMasters)))
 
   for (m <- 0 until p.numMasters) {
     // W follows AW, use stored target
@@ -211,7 +211,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
   // Write Response Channel (B): Slave -> Master
   // ========================================================================
 
-  val bArbs = Seq.fill(p.numMasters)(Module(new RRArbiter(new AXI4LiteB(p.axi), p.numSlaves)))
+  private val bArbs = Seq.fill(p.numMasters)(Module(new RRArbiter(new AXI4LiteB(p.axi), p.numSlaves)))
 
   for (s <- 0 until p.numSlaves) {
     val targetMaster = bReturnId(s)
@@ -230,7 +230,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
   // Read Address Channel (AR): Master -> Slave
   // ========================================================================
 
-  val arArbs = Seq.fill(p.numSlaves)(Module(new RRArbiter(new AXI4LiteARRouted(p), p.numMasters)))
+  private val arArbs = Seq.fill(p.numSlaves)(Module(new RRArbiter(new AXI4LiteARRouted(p), p.numMasters)))
 
   for (m <- 0 until p.numMasters) {
     val targetSlave = addrDecode(io.masters(m).ar.bits.addr)
@@ -250,7 +250,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
   }
 
   // Track master ID for R response routing (per slave)
-  val rReturnId = Seq.fill(p.numSlaves)(RegInit(0.U(p.masterIdW.W)))
+  private val rReturnId = Seq.fill(p.numSlaves)(RegInit(0.U(p.masterIdW.W)))
   for (s <- 0 until p.numSlaves) {
     when(arArbs(s).io.out.fire) {
       rReturnId(s) := arArbs(s).io.out.bits.src
@@ -261,7 +261,7 @@ class AXI4LiteXBar(val p: AXI4LiteXBarParams) extends Module {
   // Read Data Channel (R): Slave -> Master
   // ========================================================================
 
-  val rArbs = Seq.fill(p.numMasters)(Module(new RRArbiter(new AXI4LiteR(p.axi), p.numSlaves)))
+  private val rArbs = Seq.fill(p.numMasters)(Module(new RRArbiter(new AXI4LiteR(p.axi), p.numSlaves)))
 
   for (s <- 0 until p.numSlaves) {
     val targetMaster = rReturnId(s)

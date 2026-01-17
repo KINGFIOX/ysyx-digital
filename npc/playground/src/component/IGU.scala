@@ -14,12 +14,12 @@ object ImmType extends ChiselEnum {
 }
 
 class IGUInputBundle extends Bundle with HasCoreParameter {
-  val inst_31_7 = Output(UInt((InstLen - OpcodeLen).W)) // inst[31:7], 不需要 opcode 部分
-  val immType   = Output(ImmType())
+  val inst_31_7 = UInt((InstLen - OpcodeLen).W) // inst[31:7], 不需要 opcode 部分
+  val immType   = ImmType()
 }
 
 class IGUOutputBundle extends Bundle with HasCoreParameter {
-  val imm = Output(UInt(XLEN.W))
+  val imm = UInt(XLEN.W)
 }
 
 /** @brief

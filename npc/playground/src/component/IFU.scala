@@ -11,7 +11,7 @@ class IFUOutputBundle extends Bundle with HasCoreParameter {
   val inst = UInt(InstLen.W) //
   val pc   = UInt(XLEN.W)    // the pc of the instruction
   val isValid = Bool() // this is a valid instruct, used for pipeline flush control
-  val exceptionType = IFUExceptionType()
+  val exception = IFUExceptionType()
   val exceptionEn = Bool()
 }
 
@@ -71,7 +71,7 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   io.out.bits.inst := inst_reg
   io.out.bits.pc := pc_reg
   io.out.bits.isValid := (state === State.allowin_wait) // 后续用来冲刷流水线的时候用
-  io.out.bits.exceptionType := exception_reg
+  io.out.bits.exception := exception_reg
   io.out.bits.exceptionEn := exceptionEn_reg
   io.in.ready := (state === State.done_wait)  // 在 done_wait 状态接收 dnpc
 

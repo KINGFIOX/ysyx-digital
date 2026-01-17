@@ -28,7 +28,7 @@ object WBSel extends ChiselEnum {
 
 /** NPC 选择 (下一条 PC) */
 object NPCOpType extends ChiselEnum {
-  val NPC_4, NPC_BR, NPC_JAL, NPC_JALR, NPC_ECALL, NPC_MRET = Value
+  val NPC_4, NPC_BR, NPC_JAL, NPC_JALR, NPC_MRET = Value
 }
 
 /** CSR 操作类型 */
@@ -47,8 +47,7 @@ object CUExceptionType extends ChiselEnum {
     cu_BREAKPOINT,
     cu_ECALL_FROM_U_MODE, // TODO: 暂时只有 M-mode 的 ecall
     cu_ECALL_FROM_S_MODE,
-    cu_ECALL_FROM_M_MODE,
-    cu_MRET // 虽然 mret 不是异常, 但是暂时按照异常处理 《自己动手写CPU》
+    cu_ECALL_FROM_M_MODE
     = Value
 }
 
@@ -89,17 +88,14 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
 
   private val isEbreak    = WireDefault(false.B)
   private val isEcall     = WireDefault(false.B)
-  private val isMret      = WireDefault(false.B)
   private val invalidInst = WireDefault(true.B)
   private val exceptionMapping = Seq(
     isEbreak    -> CUExceptionType.cu_BREAKPOINT,
     isEcall     -> CUExceptionType.cu_ECALL_FROM_M_MODE,
-    isMret      -> CUExceptionType.cu_MRET,
     invalidInst -> CUExceptionType.cu_ILLEGAL_INSTRUCTION
   )
   io.out.exception := MuxCase(DontCare, exceptionMapping)
-  io.out.exceptionEn := isEbreak || isEcall || isMret || invalidInst
-
+  io.out.exceptionEn := isEbreak || isEcall || invalidInst
 
   /* ---------- R-type: add rd, rs1, rs2 ---------- */
   private def rInst(op: ALUOpType.Type): Unit /*无返回值*/ = {
@@ -252,6 +248,15 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     invalidInst := false.B
   }
 
+  /* ---------- MRET: 从异常返回 ---------- */
+  when(inst === MRET) {
+    io.out.immType := ImmType.IMM_I
+    io.out.csrOp := CSROpType.CSR_RW
+    io.out.csrWen := false.B
+    io.out.npcOp := NPCOpType.NPC_MRET
+    invalidInst := false.B
+  }
+
   // CSRRS: t = CSRs[csr]; CSRs[csr] = t | rs1; rd = t
   when(inst === CSRRS) {
     io.out.csrOp       := CSROpType.CSR_RS
@@ -264,14 +269,6 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   /* ---------- ECALL: 触发环境调用异常 ---------- */
   when(inst === ECALL) {
     isEcall     := true.B
-    io.out.npcOp       := NPCOpType.NPC_ECALL
-    invalidInst := false.B
-  }
-
-  /* ---------- MRET: 从异常返回 ---------- */
-  when(inst === MRET) {
-    isMret      := true.B
-    io.out.npcOp       := NPCOpType.NPC_MRET
     invalidInst := false.B
   }
 

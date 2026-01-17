@@ -15,7 +15,7 @@ import blackbox.ExceptionDpiWrapper
 // 3. 状态机
 // 4. 处理组件的输入信号 (时序)
 // 5. commit
-class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with HasRegFileParameter {
+class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with HasRegFileParameter with HasCSRParameter {
   val io = IO(new Bundle {
     val step = Input(Bool())
     val commit = Output(new CommitBundle)
@@ -23,36 +23,16 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
     val dcache = new AXI4LiteMasterIO(params)
   })
 
-  /* ========== exception 与 mcause 的映射 ========== */
-  private val ifuExceptionMcauseMap = Seq(
-    IFUExceptionType.ifu_INSTRUCTION_ADDRESS_MISALIGNED -> 0.U,
-    IFUExceptionType.ifu_INSTRUCTION_ACCESS_FAULT       -> 1.U,
-    IFUExceptionType.ifu_INSTRUCTION_PAGE_FAULT         -> 12.U
-  )
-  private val cuExceptionMcauseMap = Seq(
-    CUExceptionType.cu_ILLEGAL_INSTRUCTION  -> 2.U,
-    CUExceptionType.cu_BREAKPOINT           -> 3.U,
-    CUExceptionType.cu_ECALL_FROM_U_MODE    -> 8.U,
-    CUExceptionType.cu_ECALL_FROM_S_MODE    -> 9.U,
-    CUExceptionType.cu_ECALL_FROM_M_MODE    -> 11.U
-  )
-  private val lsuExceptionMcauseMap = Seq(
-    MemUExceptionType.mem_LOAD_ADDRESS_MISALIGNED  -> 4.U,
-    MemUExceptionType.mem_LOAD_ACCESS_FAULT        -> 5.U,
-    MemUExceptionType.mem_STORE_ADDRESS_MISALIGNED -> 6.U,
-    MemUExceptionType.mem_STORE_ACCESS_FAULT       -> 7.U,
-    MemUExceptionType.mem_LOAD_PAGE_FAULT          -> 13.U,
-    MemUExceptionType.mem_STORE_PAGE_FAULT         -> 15.U
-  )
-
   /* ========== 实例化各模块 ========== */
   private val ifu = Module(new IFU(params))
   private val cu = Module(new CU)
   private val igu = Module(new IGU)
   private val rfu = Module(new RFU)
+  private val csru = Module(new CSRU)
   private val alu = Module(new ALU)
   private val bru = Module(new BRU)
   private val lsu = Module(new LSU(params))
+  private val excu = Module(new EXCU)
 
   /* ========== 指令字段提取 ========== */
   private val inst = ifu.io.out.bits.inst
@@ -75,6 +55,10 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   rfu.io.in.rs2_i := rs2
   private val rs1Data = rfu.io.out.rs1_v
   private val rs2Data = rfu.io.out.rs2_v
+
+  /* ========== CSR 读取 ========== */
+  csru.io.in.raddr := imm
+  private val csr_read = csru.io.out.rdata
 
   /* ========== ALU 操作数选择 ========== */
   alu.io.in.op1 := MuxCase(
@@ -107,9 +91,17 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
     Seq(
       (cu.io.out.npcOp === NPCOpType.NPC_JAL) -> aluResult,
       (cu.io.out.npcOp === NPCOpType.NPC_JALR) -> (aluResult & (~1.U(XLEN.W))),
-      (cu.io.out.npcOp === NPCOpType.NPC_BR && brTaken) -> aluResult
+      (cu.io.out.npcOp === NPCOpType.NPC_BR && brTaken) -> aluResult,
+      (cu.io.out.npcOp === NPCOpType.NPC_MRET) -> csru.io.out.rdata
     )
   )
+
+  /* ========== 非 Mem, 写回值计算 ========== */
+  private val rd_v = MuxCase(0.U, Seq(
+              (cu.io.out.wbSel === WBSel.WB_ALU) -> aluResult,
+              (cu.io.out.wbSel === WBSel.WB_PC4) -> snpc,
+            ) )
+
 
   /* ========== 锁存器 ========== */
   private val mem_addr_reg = RegInit(0.U(XLEN.W))
@@ -123,20 +115,23 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   private val pc_reg = RegInit(0.U(XLEN.W))
   private val inst_reg = RegInit(0.U(InstLen.W))
   private val csr_wen_reg = RegInit(false.B)
+  private val csr_wdata_reg = RegInit(0.U(XLEN.W))
+  private val csr_wop_reg = Reg(CSROpType())
+  private val csr_waddr_reg = RegInit(0.U(XLEN.W))
 
   /* ========== 辅助信号 ========== */
   private val isMem = cu.io.out.memEn
 
   /* ========== 状态机 ========== */
   object State extends ChiselEnum {
-    val idle, ifu_valid_wait, writeback, mem_ready_wait, mem_valid_wait, ifu_ready_wait = Value
+    val idle, ifu_valid_wait, writeback, ex1, ex2, mem_ready_wait, mem_valid_wait, ifu_ready_wait = Value
   }
   private val state = RegInit(State.idle)
   switch(state) {
     is(State.idle) {
       when(io.step) {
         state := State.ifu_valid_wait
-        // reset some states
+        // reset some write enable status
         mem_en_reg := false.B
         rf_wen_reg := false.B
         csr_wen_reg := false.B
@@ -144,12 +139,22 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
     }
     is(State.ifu_valid_wait) {
       when(ifu.io.out.fire) { // 锁存组合逻辑的结果
+        /* rf */ // load, alu
         rf_wen_reg := cu.io.out.rfWen
         rd_i_reg := rd
+        /* dnpc */
         dnpc_reg := dnpc
+        /* pc */
         pc_reg := pc
+        /* IR */
         inst_reg := inst
-        when(isMem) {
+        when(excu.io.out.valid) {
+          state := State.ex1
+          csr_wdata_reg := excu.io.out.bits.mcause
+          csr_wen_reg := true.B
+          csr_wop_reg := CSROpType.CSR_RW
+          csr_waddr_reg := MCAUSE.U
+        } .elsewhen(isMem) {
           state := State.mem_ready_wait
           mem_op_reg := cu.io.out.memOp
           mem_en_reg := cu.io.out.memEn
@@ -157,11 +162,13 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
           mem_wdata_reg := rs2Data
         } .otherwise {
           state := State.writeback
+          /* rf */ // alu
+          rd_v_reg := rd_v
+          /* csr */ // csr
           csr_wen_reg := cu.io.out.csrWen
-          rd_v_reg := MuxCase(0.U, Seq(
-              (cu.io.out.wbSel === WBSel.WB_ALU) -> aluResult,
-              (cu.io.out.wbSel === WBSel.WB_PC4) -> snpc,
-            ) )
+          csr_wdata_reg := rs1Data
+          csr_wop_reg := cu.io.out.csrOp
+          csr_waddr_reg := imm
         }
       }
     }
@@ -172,12 +179,29 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
     }
     is(State.mem_valid_wait) {
       when(lsu.io.out.fire) {
-        state := State.writeback
-        rd_v_reg := lsu.io.out.bits.rdata
-        // TODO: exception
+        when(excu.io.out.valid) {
+          state := State.ex1
+          csr_wdata_reg := excu.io.out.bits.mcause
+          csr_wen_reg := true.B
+          csr_wop_reg := CSROpType.CSR_RW
+          csr_waddr_reg := MCAUSE.U
+        } .otherwise {
+          state := State.writeback
+          rd_v_reg := lsu.io.out.bits.rdata
+        }
       }
     }
     is(State.writeback) {
+      state := State.ifu_ready_wait
+    }
+    is(State.ex1) {
+      state := State.ex2
+      csr_wdata_reg := pc_reg
+      csr_wen_reg := true.B
+      csr_wop_reg := CSROpType.CSR_RW
+      csr_waddr_reg := MEPC.U
+    }
+    is(State.ex2) {
       state := State.ifu_ready_wait
     }
     is(State.ifu_ready_wait) {
@@ -199,6 +223,12 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   rfu.io.in.wdata := rd_v_reg
   rfu.io.in.rd_i := rd_i_reg
 
+  /* ========== CSRU ========== */
+  csru.io.in.waddr := csr_waddr_reg
+  csru.io.in.wdata := csr_wdata_reg
+  csru.io.in.wen := csr_wen_reg && ((state === State.writeback) || (state === State.ex1) || (state === State.ex2))
+  csru.io.in.wop := csr_wop_reg
+
   /* ========== LSU ========== */
   lsu.io.in.valid := (state === State.mem_ready_wait)
   lsu.io.in.bits.op := mem_op_reg
@@ -207,6 +237,16 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   lsu.io.in.bits.wdata := mem_wdata_reg
   lsu.io.out.ready := (state === State.mem_valid_wait)
   lsu.io.dcache <> io.dcache
+
+  /* ========== EXCU ========== */
+  excu.io.in.ifu := ifu.io.out.bits.exception
+  excu.io.in.ifuEn := ifu.io.out.fire && ifu.io.out.bits.exceptionEn
+  excu.io.in.cu := cu.io.out.exception
+  excu.io.in.cuEn := ifu.io.out.fire && cu.io.out.exceptionEn
+  excu.io.in.lsu := lsu.io.out.bits.exception
+  excu.io.in.lsuEn := lsu.io.out.fire && lsu.io.out.bits.exceptionEn
+  excu.io.in.pc := pc_reg
+  excu.io.in.a0 := rfu.io.out.commit.gpr(10)
 
   /* ========== commit ========== */
   io.commit.valid := (state === State.writeback)

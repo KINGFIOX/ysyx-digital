@@ -1,0 +1,68 @@
+package component
+
+import chisel3._
+import chisel3.util._
+import common.HasCoreParameter
+import blackbox.ExceptionDpiWrapper
+
+class EXCUOutputBundle extends Bundle with HasCoreParameter {
+  val mcause = UInt(XLEN.W)
+}
+
+class EXCUInputBundle extends Bundle with HasCoreParameter {
+  val ifu = IFUExceptionType(); val ifuEn = Bool()
+  val cu = CUExceptionType(); val cuEn = Bool()
+  val lsu = MemUExceptionType(); val lsuEn = Bool()
+  val a0 = UInt(XLEN.W)
+  val pc = UInt(XLEN.W)
+}
+
+
+class EXCU extends Module {
+  val io = IO(new Bundle {
+    val in = Flipped(new EXCUInputBundle)
+    val out = ValidIO(new EXCUOutputBundle)
+  })
+
+  /* ========== exception 与 mcause 的映射 ========== */
+  private val ifuExceptionMcauseMap = Seq(
+    IFUExceptionType.ifu_INSTRUCTION_ADDRESS_MISALIGNED -> 0.U,
+    IFUExceptionType.ifu_INSTRUCTION_ACCESS_FAULT       -> 1.U,
+    IFUExceptionType.ifu_INSTRUCTION_PAGE_FAULT         -> 12.U
+  )
+  private val cuExceptionMcauseMap = Seq(
+    CUExceptionType.cu_ILLEGAL_INSTRUCTION  -> 2.U,
+    CUExceptionType.cu_BREAKPOINT           -> 3.U,
+    CUExceptionType.cu_ECALL_FROM_U_MODE    -> 8.U,
+    CUExceptionType.cu_ECALL_FROM_S_MODE    -> 9.U,
+    CUExceptionType.cu_ECALL_FROM_M_MODE    -> 11.U
+  )
+  private val lsuExceptionMcauseMap = Seq(
+    MemUExceptionType.mem_LOAD_ADDRESS_MISALIGNED  -> 4.U,
+    MemUExceptionType.mem_LOAD_ACCESS_FAULT        -> 5.U,
+    MemUExceptionType.mem_STORE_ADDRESS_MISALIGNED -> 6.U,
+    MemUExceptionType.mem_STORE_ACCESS_FAULT       -> 7.U,
+    MemUExceptionType.mem_LOAD_PAGE_FAULT          -> 13.U,
+    MemUExceptionType.mem_STORE_PAGE_FAULT         -> 15.U
+  )
+
+  // IFU > CU > LSU
+  private val mcause = MuxCase(0.U, Seq(
+    io.in.ifuEn -> MuxLookup(io.in.ifu, 0.U)(ifuExceptionMcauseMap.map { case (k, v) => k -> v }),
+    io.in.cuEn  -> MuxLookup(io.in.cu, 0.U)(cuExceptionMcauseMap.map { case (k, v) => k -> v }),
+    io.in.lsuEn -> MuxLookup(io.in.lsu, 0.U)(lsuExceptionMcauseMap.map { case (k, v) => k -> v })
+  ))
+  private val hasException = io.in.ifuEn || io.in.cuEn || io.in.lsuEn
+
+  private val exceptionDpiWrapper = Module(new ExceptionDpiWrapper)
+  exceptionDpiWrapper.io.a0_i := io.in.a0
+  exceptionDpiWrapper.io.en_i := io.in.cuEn && (io.in.cu === CUExceptionType.cu_BREAKPOINT)
+  exceptionDpiWrapper.io.mcause_i := mcause
+  exceptionDpiWrapper.io.pc_i := io.in.pc
+
+
+
+  // 输出
+  io.out.valid := hasException
+  io.out.bits.mcause := mcause
+}

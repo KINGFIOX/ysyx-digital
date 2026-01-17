@@ -25,13 +25,13 @@ class NPCSoC(params: AXI4LiteParams) extends Module {
     val commit = new CommitBundle
   })
 
-  val core = Module(new NPCCore(params))
+  private val core = Module(new NPCCore(params))
   io.commit := core.io.commit
   core.io.step := io.step
 
   // AXI4-Lite Crossbar 配置
   // 地址映射：内存从 0x80000000 开始，大小为 256MB (0x10000000)
-  val xbarParams = AXI4LiteXBarParams(
+  private val xbarParams = AXI4LiteXBarParams(
     axi = params,
     numMasters = 2, // IFU (icache) 和 LSU (dcache) 作为 master
     numSlaves = 1,  // 只有一个内存 slave
@@ -40,14 +40,14 @@ class NPCSoC(params: AXI4LiteParams) extends Module {
     )
   )
 
-  val xbar = Module(new AXI4LiteXBar(xbarParams))
+  private val xbar = Module(new AXI4LiteXBar(xbarParams))
 
   // 连接 core 的 icache 和 dcache 到 xbar 的 master 端口
   xbar.io.masters(0) <> core.io.icache
   xbar.io.masters(1) <> core.io.dcache
 
   // 创建内存 slave
-  val memSlave = Module(new AXI4LitePmemSlave(params))
+  private val memSlave = Module(new AXI4LitePmemSlave(params))
 
   // 连接 xbar 的 slave 端口到内存 slave
   xbar.io.slaves(0) <> memSlave.io.axi

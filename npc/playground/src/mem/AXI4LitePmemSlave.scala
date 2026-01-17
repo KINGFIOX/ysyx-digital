@@ -14,16 +14,16 @@ class AXI4LitePmemSlave(params: AXI4LiteParams) extends Module with HasCoreParam
 
   // 共用延迟计数器（读写不会同时进行）
   // 使用 Chisel 自带的 LFSR 生成随机延迟
-  val counter = RegInit(0.U(8.W))
+  private val counter = RegInit(0.U(8.W))
 
   // ========== 读操作状态机 ==========
   object ReadState extends ChiselEnum {
     val idle, reading, waiting, done = Value
   }
 
-  val read_state = RegInit(ReadState.idle)
-  val read_addr_reg = RegInit(0.U(params.addrWidth.W))
-  val read_data_reg = RegInit(0.U(params.dataWidth.W))
+  private val read_state = RegInit(ReadState.idle)
+  private val read_addr_reg = RegInit(0.U(params.addrWidth.W))
+  private val read_data_reg = RegInit(0.U(params.dataWidth.W))
 
   // AR 通道握手
   io.axi.ar.ready := (read_state === ReadState.idle)
@@ -34,7 +34,7 @@ class AXI4LitePmemSlave(params: AXI4LiteParams) extends Module with HasCoreParam
   io.axi.r.bits.resp := AXI4LiteResp.OKAY
 
   // DPI 读取模块
-  val pmemReadDpiWrapper = Module(new PmemReadDpiWrapper)
+  private val pmemReadDpiWrapper = Module(new PmemReadDpiWrapper)
   pmemReadDpiWrapper.io.clock := clock
   pmemReadDpiWrapper.io.en_i := false.B
   pmemReadDpiWrapper.io.addr_i := read_addr_reg
@@ -75,18 +75,18 @@ class AXI4LitePmemSlave(params: AXI4LiteParams) extends Module with HasCoreParam
     val idle, writing, done = Value
   }
 
-  val write_state = RegInit(WriteState.idle)
+  private val write_state = RegInit(WriteState.idle)
 
   // AW 和 W 通道可能不同顺序到达，需要分别记录
-  val aw_received = RegInit(false.B)
-  val w_received  = RegInit(false.B)
+  private val aw_received = RegInit(false.B)
+  private val w_received  = RegInit(false.B)
 
-  val write_addr_reg = RegInit(0.U(params.addrWidth.W))
-  val write_data_reg = RegInit(0.U(params.dataWidth.W))
-  val write_strb_reg = RegInit(0.U(params.strbWidth.W))
+  private val write_addr_reg = RegInit(0.U(params.addrWidth.W))
+  private val write_data_reg = RegInit(0.U(params.dataWidth.W))
+  private val write_strb_reg = RegInit(0.U(params.strbWidth.W))
 
   // DPI 写入模块
-  val pmemWriteDpiWrapper = Module(new PmemWriteDpiWrapper)
+  private val pmemWriteDpiWrapper = Module(new PmemWriteDpiWrapper)
   pmemWriteDpiWrapper.io.clock  := clock
   pmemWriteDpiWrapper.io.en_i   := false.B
   pmemWriteDpiWrapper.io.addr_i := write_addr_reg
