@@ -57,7 +57,6 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   private val rs2Data = rfu.io.out.rs2_v
 
   /* ========== CSR 读取 ========== */
-  csru.io.in.raddr := imm
   private val csr_read = csru.io.out.rdata
 
   /* ========== ALU 操作数选择 ========== */
@@ -98,6 +97,7 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
 
   /* ========== 非 Mem, 写回值计算 ========== */
   private val rd_v = MuxCase(0.U, Seq(
+              (cu.io.out.wbSel === WBSel.WB_CSR) -> csr_read,
               (cu.io.out.wbSel === WBSel.WB_ALU) -> aluResult,
               (cu.io.out.wbSel === WBSel.WB_PC4) -> snpc,
             ) )
@@ -154,6 +154,7 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
           csr_wen_reg := true.B
           csr_wop_reg := CSROpType.CSR_RW
           csr_waddr_reg := MCAUSE.U
+          // dnpc_reg 在 ex2 状态通过 raddr 接口读取 mtvec 后设置
         } .elsewhen(isMem) {
           state := State.mem_ready_wait
           mem_op_reg := cu.io.out.memOp
@@ -203,6 +204,8 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
     }
     is(State.ex2) {
       state := State.ifu_ready_wait
+      // ex1 状态设置了 raddr := MTVEC，这里读取结果
+      dnpc_reg := csru.io.out.rdata
     }
     is(State.ifu_ready_wait) {
       when(ifu.io.in.fire) {
@@ -228,6 +231,10 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   csru.io.in.wdata := csr_wdata_reg
   csru.io.in.wen := csr_wen_reg && ((state === State.writeback) || (state === State.ex1) || (state === State.ex2))
   csru.io.in.wop := csr_wop_reg
+  csru.io.in.raddr := MuxCase(imm, Seq(
+    ((state === State.ex1) || (state === State.ex2)) -> MTVEC.U,
+    (cu.io.out.npcOp === NPCOpType.NPC_MRET) -> MEPC.U,
+  ))
 
   /* ========== LSU ========== */
   lsu.io.in.valid := (state === State.mem_ready_wait)
@@ -249,11 +256,11 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   excu.io.in.a0 := rfu.io.out.commit.gpr(10)
 
   /* ========== commit ========== */
-  io.commit.valid := (state === State.writeback)
+  // 异常处理也需要产生 commit 信号 (ex2 是异常处理的最后一个状态)
+  io.commit.valid := ifu.io.in.fire
   io.commit.pc := pc_reg
   io.commit.dnpc := dnpc_reg
   io.commit.inst := inst_reg
   io.commit.gpr := rfu.io.out.commit.gpr
-  io.commit.csr := DontCare // TODO: 添加 CSRU 后填写
-
+  io.commit.csr := csru.io.out.commit
 }
