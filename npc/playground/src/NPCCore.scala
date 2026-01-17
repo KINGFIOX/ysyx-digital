@@ -14,11 +14,11 @@ import blackbox.ExceptionDpiWrapper
 // 2. 处理组件的输出信号 (时序) + 组合逻辑元件的输入
 // 3. 状态机
 // 4. 处理组件的输入信号 (时序)
-// 5. commit
+// 5. debug
 class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with HasRegFileParameter with HasCSRParameter {
   val io = IO(new Bundle {
     val step = Input(Bool())
-    val commit = Output(new CommitBundle)
+    val debug = Output(new DebugBundle)
     val icache = new AXI4LiteMasterIO(params)
     val dcache = new AXI4LiteMasterIO(params)
   })
@@ -253,14 +253,13 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   excu.io.in.lsu := lsu.io.out.bits.exception
   excu.io.in.lsuEn := lsu.io.out.fire && lsu.io.out.bits.exceptionEn
   excu.io.in.pc := pc_reg
-  excu.io.in.a0 := rfu.io.out.commit.gpr(10)
+  excu.io.in.a0 := rfu.io.out.debug.gpr(10)
 
-  /* ========== commit ========== */
-  // 异常处理也需要产生 commit 信号 (ex2 是异常处理的最后一个状态)
-  io.commit.valid := ifu.io.in.fire
-  io.commit.pc := pc_reg
-  io.commit.dnpc := dnpc_reg
-  io.commit.inst := inst_reg
-  io.commit.gpr := rfu.io.out.commit.gpr
-  io.commit.csr := csru.io.out.commit
+  /* ========== debug ========== */
+  io.debug.valid := ifu.io.in.fire
+  io.debug.pc := pc_reg
+  io.debug.dnpc := dnpc_reg
+  io.debug.inst := inst_reg
+  io.debug.gpr := rfu.io.out.debug.gpr
+  io.debug.csr := csru.io.out.debug
 }

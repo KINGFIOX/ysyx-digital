@@ -4,29 +4,29 @@ import chisel3._
 import chisel3.util._
 
 import common.{HasCSRParameter, HasCoreParameter, HasRegFileParameter}
-import component.CSRUCommitBundle
+import component.CSRUDebugBundle
 import component.AXI4LitePmemSlave
 import general.{AXI4LiteXBar, AXI4LiteXBarParams, AXI4LiteParams}
 
 /** 用来给 Verilator 暴露提交信息, 便于在 C++ 侧采样做差分测试 */
-class CommitBundle extends Bundle with HasCoreParameter with HasRegFileParameter with HasCSRParameter {
+class DebugBundle extends Bundle with HasCoreParameter with HasRegFileParameter with HasCSRParameter {
   val valid = Bool()
   val pc    = UInt(XLEN.W)
   val dnpc  = UInt(XLEN.W)
   val inst  = UInt(InstLen.W)
   val gpr   = Vec(NRReg, UInt(XLEN.W))
   // CSR 提交信息
-  val csr   = new CSRUCommitBundle
+  val csr   = new CSRUDebugBundle
 }
 
 class NPCSoC(params: AXI4LiteParams) extends Module {
   val io = IO(new Bundle {
     val step = Input(Bool())
-    val commit = new CommitBundle
+    val debug = new DebugBundle
   })
 
   private val core = Module(new NPCCore(params))
-  io.commit := core.io.commit
+  io.debug := core.io.debug
   core.io.step := io.step
 
   // AXI4-Lite Crossbar 配置

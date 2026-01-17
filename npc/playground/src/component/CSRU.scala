@@ -14,7 +14,7 @@ class CSRUInputBundle extends Bundle with HasCoreParameter with HasCSRParameter 
   val wdata = UInt(XLEN.W) // rs1_data
 }
 
-class CSRUCommitBundle extends Bundle with HasCoreParameter with HasCSRParameter {
+class CSRUDebugBundle extends Bundle with HasCoreParameter with HasCSRParameter {
   val mstatus   = UInt(XLEN.W)
   val mtvec     = UInt(XLEN.W)
   val mepc      = UInt(XLEN.W)
@@ -27,7 +27,7 @@ class CSRUCommitBundle extends Bundle with HasCoreParameter with HasCSRParameter
 
 class CSRUOutputBundle extends Bundle with HasCoreParameter with HasCSRParameter {
   val rdata  = UInt(XLEN.W)
-  val commit = new CSRUCommitBundle // difftest
+  val debug = new CSRUDebugBundle // difftest
 }
 
 class CSRU extends Module with HasCoreParameter with HasCSRParameter {
@@ -86,13 +86,13 @@ class CSRU extends Module with HasCoreParameter with HasCSRParameter {
     when(io.in.waddr === MCAUSE.U) { mcause := csrWdata }
   }
 
-  // ==================== Commit 输出 ====================
-  io.out.commit.mstatus := mstatus
-  io.out.commit.mtvec := mtvec
-  io.out.commit.mepc := mepc
-  io.out.commit.mcause := mcause
-  io.out.commit.mcycle    := mcycle(31, 0)
-  io.out.commit.mcycleh   := mcycle(63, 32)
-  io.out.commit.mvendorid := mvendorid
-  io.out.commit.marchid   := marchid
+  // ==================== debug 输出 ====================
+  io.out.debug.mstatus := mstatus
+  io.out.debug.mtvec := mtvec
+  io.out.debug.mepc := mepc
+  io.out.debug.mcause := mcause
+  io.out.debug.mcycle    := mcycle(31, 0)
+  io.out.debug.mcycleh   := mcycle(63, 32)
+  io.out.debug.mvendorid := mvendorid
+  io.out.debug.marchid   := marchid
 }

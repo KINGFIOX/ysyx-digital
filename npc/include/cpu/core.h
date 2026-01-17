@@ -35,7 +35,7 @@ void npc_core_flush_trace(void);
 /**
  * 执行单条指令
  *
- * 驱动时钟直到 commit.valid 有效,
+ * 驱动时钟直到 debug.valid 有效,
  * 然后将提交信息写入 Decode 结构体
  *
  * @param s 指向 Decode 结构体的指针, 用于接收:
