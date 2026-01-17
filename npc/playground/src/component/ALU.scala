@@ -10,17 +10,17 @@ import chisel3.util._
 import common.HasCoreParameter
 
 object ALUOpType extends ChiselEnum {
-  val alu_ADD, alu_SUB, alu_AND, alu_OR, alu_XOR, alu_SLL, alu_SRL, alu_SRA, alu_SLT, alu_SLTU = Value
+  val alu_X, alu_ADD, alu_SUB, alu_AND, alu_OR, alu_XOR, alu_SLL, alu_SRL, alu_SRA, alu_SLT, alu_SLTU = Value
 }
 
 class ALUInputBundle extends Bundle with HasCoreParameter {
-  val op1   = Output(UInt(XLEN.W))
-  val op2   = Output(UInt(XLEN.W))
-  val aluOp = Output(ALUOpType())
+  val op1   = UInt(XLEN.W)
+  val op2   = UInt(XLEN.W)
+  val aluOp = ALUOpType()
 }
 
 class ALUOutputBundle extends Bundle with HasCoreParameter {
-  val result = Output(UInt(XLEN.W))
+  val result = UInt(XLEN.W)
 }
 
 class ALU extends Module with HasCoreParameter {
@@ -46,7 +46,10 @@ class ALU extends Module with HasCoreParameter {
     is(ALUOpType.alu_SRA) { io.out.result := (op1.asSInt >> shamt).asUInt }
     is(ALUOpType.alu_SLT) { io.out.result := op1.asSInt < op2.asSInt }
     is(ALUOpType.alu_SLTU) { io.out.result := op1 < op2 }
+    // alu_X
   }
+
+
 }
 
 object ALU extends App {

@@ -11,9 +11,9 @@ import firrtl.options.Stage
 import blackbox.ExceptionDpiWrapper
 
 // 1. 组件初始化
-// 2. 处理组件的输出信号 + 组合逻辑元件的输入
+// 2. 处理组件的输出信号 (时序) + 组合逻辑元件的输入
 // 3. 状态机
-// 4. 处理组件的输入信号
+// 4. 处理组件的输入信号 (时序)
 // 5. commit
 class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with HasRegFileParameter {
   val io = IO(new Bundle {
@@ -98,7 +98,7 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   /* ========== 分支单元 ========== */
   bru.io.in.rs1_v := rs1Data
   bru.io.in.rs2_v := rs2Data
-  bru.io.in.bru_op := cu.io.out.bruOp
+  bru.io.in.op := cu.io.out.bruOp
   private val brTaken = bru.io.out.br_flag
 
   /* ========== 下地址的计算 ========== */
@@ -114,13 +114,15 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   /* ========== 锁存器 ========== */
   private val mem_addr_reg = RegInit(0.U(XLEN.W))
   private val mem_wdata_reg = RegInit(0.U(XLEN.W))
-  private val mem_op_reg = RegInit(MemUOpType.mem_X)
+  private val mem_op_reg = Reg(MemUOpType())
+  private val mem_en_reg = RegInit(false.B)
   private val rd_i_reg = RegInit(0.U(NRRegbits.W))
   private val rd_v_reg = RegInit(0.U(XLEN.W))
   private val rf_wen_reg = RegInit(false.B)
   private val dnpc_reg = RegInit(0.U(XLEN.W))
   private val pc_reg = RegInit(0.U(XLEN.W))
   private val inst_reg = RegInit(0.U(InstLen.W))
+  private val csr_wen_reg = RegInit(false.B)
 
   /* ========== 辅助信号 ========== */
   private val isMem = cu.io.out.memEn
@@ -134,6 +136,10 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
     is(State.idle) {
       when(io.step) {
         state := State.ifu_valid_wait
+        // reset some states
+        mem_en_reg := false.B
+        rf_wen_reg := false.B
+        csr_wen_reg := false.B
       }
     }
     is(State.ifu_valid_wait) {
@@ -145,11 +151,13 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
         inst_reg := inst
         when(isMem) {
           state := State.mem_ready_wait
-          mem_addr_reg := aluResult
-          mem_wdata_reg := rs2Data // store
           mem_op_reg := cu.io.out.memOp
+          mem_en_reg := cu.io.out.memEn
+          mem_addr_reg := aluResult
+          mem_wdata_reg := rs2Data
         } .otherwise {
           state := State.writeback
+          csr_wen_reg := cu.io.out.csrWen
           rd_v_reg := aluResult
         }
       }
@@ -191,6 +199,7 @@ class NPCCore(params: AXI4LiteParams) extends Module with HasCoreParameter with 
   /* ========== LSU ========== */
   lsu.io.in.valid := (state === State.mem_ready_wait)
   lsu.io.in.bits.op := mem_op_reg
+  lsu.io.in.bits.en := mem_en_reg
   lsu.io.in.bits.addr := mem_addr_reg
   lsu.io.in.bits.wdata := mem_wdata_reg
   lsu.io.out.ready := (state === State.mem_valid_wait)

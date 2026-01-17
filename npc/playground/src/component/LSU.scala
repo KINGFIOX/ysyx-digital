@@ -9,7 +9,7 @@ import general.AXI4LiteParams
 import general.AXI4LiteResp
 
 object MemUOpType extends ChiselEnum {
-  val mem_X, mem_LB, mem_LH, mem_LW, mem_LBU, mem_LHU, mem_SB, mem_SH, mem_SW = Value
+  val mem_LB, mem_LH, mem_LW, mem_LBU, mem_LHU, mem_SB, mem_SH, mem_SW = Value
 }
 
 // mcause:
@@ -21,8 +21,7 @@ object MemUOpType extends ChiselEnum {
 // 13. load page fault
 // 15. store page fault
 object MemUExceptionType extends ChiselEnum {
-  val mem_X, // 正常
-    mem_LOAD_ADDRESS_MISALIGNED, mem_LOAD_ACCESS_FAULT, // load fault
+  val mem_LOAD_ADDRESS_MISALIGNED, mem_LOAD_ACCESS_FAULT, // load fault
     mem_STORE_ADDRESS_MISALIGNED, mem_STORE_ACCESS_FAULT, // store fault
     mem_LOAD_PAGE_FAULT, mem_STORE_PAGE_FAULT // page fault
     = Value
@@ -32,11 +31,12 @@ class MEMUInputBundle extends Bundle with HasCoreParameter {
   val op    = MemUOpType()
   val wdata = UInt(XLEN.W)
   val addr  = UInt(XLEN.W)
+  val en = Bool()
 }
 
 class MEMUOutputBundle extends Bundle with HasCoreParameter {
   val rdata = UInt(XLEN.W)
-  val exception = MemUExceptionType()
+  val exception = MemUExceptionType(); val exceptionEn = Bool()
 }
 
 /** 符号扩展 */
@@ -85,7 +85,8 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   private val op_reg    = RegInit(MemUOpType.mem_LB)
   private val addr_reg  = RegInit(0.U(XLEN.W))
   private val wdata_reg = RegInit(0.U(XLEN.W))
-  private val exception_reg = RegInit(MemUExceptionType.mem_X)
+  private val exception_reg = Reg(MemUExceptionType())
+  private val exceptionEn_reg = RegInit(false.B)
 
   // ========== 读状态机 ==========
   object ReadState extends ChiselEnum {
@@ -106,14 +107,14 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   // ========== 读状态机逻辑 ==========
   switch(read_state) {
     is(ReadState.idle) {
-      when(io.in.fire && isLoad) {
+      when(io.in.fire && isLoad && io.in.bits.en) {
         op_reg   := io.in.bits.op
         addr_reg := io.in.bits.addr
         when(loadMisaligned) {
           exception_reg := MemUExceptionType.mem_LOAD_ADDRESS_MISALIGNED
+          exceptionEn_reg := true.B
           read_state := ReadState.done
         }.otherwise {
-          exception_reg := MemUExceptionType.mem_X
           read_state := ReadState.ar_wait
         }
       }
@@ -127,6 +128,7 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
       when(io.dcache.r.fire) {
         when(io.dcache.r.bits.resp =/= AXI4LiteResp.OKAY) {
           exception_reg := MemUExceptionType.mem_LOAD_ACCESS_FAULT
+          exceptionEn_reg := true.B
         }
         read_state := ReadState.done
       }
@@ -134,7 +136,6 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
     is(ReadState.done) {
       when(io.out.fire) {
         read_state := ReadState.idle
-        exception_reg := MemUExceptionType.mem_X
       }
     }
   }
@@ -142,18 +143,19 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   // ========== 写状态机逻辑 ==========
   switch(write_state) {
     is(WriteState.idle) {
-      when(io.in.fire && isStore) {
+      when(io.in.fire && isStore && io.in.bits.en) {
         op_reg    := io.in.bits.op
         addr_reg  := io.in.bits.addr
         wdata_reg := io.in.bits.wdata
         when(storeMisaligned) {
           exception_reg := MemUExceptionType.mem_STORE_ADDRESS_MISALIGNED
+          exceptionEn_reg := true.B
           write_state := WriteState.done
         }.otherwise {
-          exception_reg := MemUExceptionType.mem_X
           write_state := WriteState.aw_w_wait
           aw_sent := false.B
           w_sent  := false.B
+          exceptionEn_reg := false.B // reset
         }
       }
     }
@@ -177,6 +179,7 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
       when(io.dcache.b.fire) {
         when(io.dcache.b.bits.resp =/= AXI4LiteResp.OKAY) {
           exception_reg := MemUExceptionType.mem_STORE_ACCESS_FAULT
+          exceptionEn_reg := true.B
         }
         write_state := WriteState.done
       }
@@ -184,7 +187,6 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
     is(WriteState.done) {
       when(io.out.fire) {
         write_state := WriteState.idle
-        exception_reg := MemUExceptionType.mem_X
       }
     }
   }
@@ -252,4 +254,5 @@ class LSU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   io.out.valid          := isReadDone || isWriteDone
   io.out.bits.rdata     := Mux(isReadDone, rdata_reg, 0.U)
   io.out.bits.exception := exception_reg
+  io.out.bits.exceptionEn := exceptionEn_reg
 }

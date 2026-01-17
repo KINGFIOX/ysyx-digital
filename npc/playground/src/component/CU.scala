@@ -9,6 +9,7 @@ import chisel3.util._
 import common.HasCoreParameter
 import common.HasRegFileParameter
 import common.Instructions._
+import component.ALUOpType.alu_X
 
 /** ALU 操作数1 选择 */
 object ALUOp1Sel extends ChiselEnum {
@@ -32,7 +33,7 @@ object NPCOpType extends ChiselEnum {
 
 /** CSR 操作类型 */
 object CSROpType extends ChiselEnum {
-  val CSR_NOP, CSR_RW, CSR_RS = Value // NOP, Read-Write, Read-Set
+  val CSR_RW, CSR_RS = Value // NOP, Read-Write, Read-Set
 }
 
 // mcause:
@@ -42,8 +43,7 @@ object CSROpType extends ChiselEnum {
 // 9. ecall from S-mode
 // 11. ecall from M-mode
 object CUExceptionType extends ChiselEnum {
-  val cu_X,
-    cu_ILLEGAL_INSTRUCTION,
+  val cu_ILLEGAL_INSTRUCTION,
     cu_BREAKPOINT,
     cu_ECALL_FROM_U_MODE, // TODO: 暂时只有 M-mode 的 ecall
     cu_ECALL_FROM_S_MODE,
@@ -54,19 +54,15 @@ object CUExceptionType extends ChiselEnum {
 
 /** CU 输出的控制信号 */
 class CUOutputBundle extends Bundle with HasRegFileParameter {
-  // ALU 控制
-  val aluOp       = ALUOpType()
-  val aluSel1     = ALUOp1Sel()
-  val aluSel2     = ALUOp2Sel()
-  val immType = ImmType() // imm
+  val aluOp = ALUOpType(); val aluSel1 = ALUOp1Sel(); val aluSel2 = ALUOp2Sel() // ALU 控制
+  val immType = ImmType()
+  val npcOp = NPCOpType()
+  val bruOp = BRUOpType() // bru
+
   val memOp = MemUOpType(); val memEn = Bool() // mem
   val wbSel = WBSel(); val rfWen = Bool() // write back
-  // 分支控制
-  val bruOp       = BRUOpType()
-  val npcOp       = NPCOpType()
   val csrOp = CSROpType(); val csrWen = Bool() // csr
-  // 异常
-  val exception = CUExceptionType()
+  val exception = CUExceptionType(); val exceptionEn = Bool() // 异常
 }
 
 class CUInputBundle extends Bundle with HasCoreParameter {
@@ -82,19 +78,14 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
   private val inst = io.in.inst
 
   /* ---------- 默认值 ---------- */
-  io.out.aluOp   := DontCare
-  io.out.aluSel1 := DontCare
-  io.out.aluSel2 := DontCare
+  io.out.aluOp   := WireDefault(ALUOpType.alu_X); io.out.aluSel1 := DontCare; io.out.aluSel2 := DontCare
+  io.out.bruOp := WireDefault(BRUOpType.bru_X);
   io.out.immType := DontCare
-  io.out.memOp   := DontCare
-  io.out.wbSel   := DontCare
-  io.out.bruOp   := DontCare
-  io.out.csrOp   := CSROpType.CSR_NOP
+  io.out.npcOp := NPCOpType.NPC_4 // 默认 pc + 4
 
-  io.out.memEn       := false.B         // 禁止写入, 状态不变
-  io.out.rfWen       := false.B
-  io.out.csrWen      := false.B
-  io.out.npcOp       := NPCOpType.NPC_4 // 默认 pc + 4
+  io.out.memOp := DontCare; io.out.memEn := WireDefault(false.B)
+  io.out.wbSel := DontCare; io.out.rfWen := WireDefault(false.B)
+  io.out.csrOp := DontCare; io.out.csrWen := WireDefault(false.B)
 
   private val isEbreak    = WireDefault(false.B)
   private val isEcall     = WireDefault(false.B)
@@ -106,7 +97,9 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     isMret      -> CUExceptionType.cu_MRET,
     invalidInst -> CUExceptionType.cu_ILLEGAL_INSTRUCTION
   )
-  io.out.exception := MuxCase(CUExceptionType.cu_X, exceptionMapping)
+  io.out.exception := MuxCase(DontCare, exceptionMapping)
+  io.out.exceptionEn := isEbreak || isEcall || isMret || invalidInst
+
 
   /* ---------- R-type: add rd, rs1, rs2 ---------- */
   private def rInst(op: ALUOpType.Type): Unit /*无返回值*/ = {
@@ -188,7 +181,7 @@ class CU extends Module with HasCoreParameter with HasRegFileParameter {
     io.out.bruOp       := op
     io.out.immType     := ImmType.IMM_B
     io.out.npcOp       := NPCOpType.NPC_BR
-    invalidInst := false.B
+    invalidInst        := false.B
   }
   when(inst === BEQ) { bInst(BRUOpType.bru_BEQ) }
   when(inst === BNE) { bInst(BRUOpType.bru_BNE) }

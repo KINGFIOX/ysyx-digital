@@ -12,6 +12,7 @@ class IFUOutputBundle extends Bundle with HasCoreParameter {
   val pc   = UInt(XLEN.W)    // the pc of the instruction
   val isValid = Bool() // this is a valid instruct, used for pipeline flush control
   val exceptionType = IFUExceptionType()
+  val exceptionEn = Bool()
 }
 
 class IFInputBundle extends Bundle with HasCoreParameter {
@@ -23,8 +24,7 @@ class IFInputBundle extends Bundle with HasCoreParameter {
 // 1. instruction access fault
 // 12. instruction page fault
 object IFUExceptionType extends ChiselEnum {
-  val ifu_X,
-    ifu_INSTRUCTION_ADDRESS_MISALIGNED, ifu_INSTRUCTION_ACCESS_FAULT,
+  val ifu_INSTRUCTION_ADDRESS_MISALIGNED, ifu_INSTRUCTION_ACCESS_FAULT,
     ifu_INSTRUCTION_PAGE_FAULT
     = Value
 }
@@ -48,7 +48,8 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
 
   private val pc_reg = RegInit("h8000_0000".U(XLEN.W)) // pc_reg
   private val inst_reg = RegInit(0.U(InstLen.W)) // IR
-  private val exception_reg = RegInit(IFUExceptionType.ifu_X)
+  private val exception_reg = Reg(IFUExceptionType())
+  private val exceptionEn_reg = RegInit(false.B)
 
   object State extends ChiselEnum {
     // avail_wait: next stage is allowin -> inst_wait
@@ -71,13 +72,14 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
   io.out.bits.pc := pc_reg
   io.out.bits.isValid := (state === State.allowin_wait) // 后续用来冲刷流水线的时候用
   io.out.bits.exceptionType := exception_reg
+  io.out.bits.exceptionEn := exceptionEn_reg
   io.in.ready := (state === State.done_wait)  // 在 done_wait 状态接收 dnpc
 
   switch(state) {
     is(State.idle) {
       when(io.step) {
         state := State.ar_wait
-        exception_reg := IFUExceptionType.ifu_X // 重置异常状态
+        exceptionEn_reg := false.B // reset
       }
     }
     is(State.ar_wait) {
@@ -85,6 +87,7 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
         // 指令地址未对齐异常，不发起总线请求，直接进入 allowin_wait
         state := State.allowin_wait
         exception_reg := IFUExceptionType.ifu_INSTRUCTION_ADDRESS_MISALIGNED
+        exceptionEn_reg := true.B
         inst_reg := 0.U // 无效指令
       }.elsewhen(io.icache.ar.fire) {
         state := State.r_wait
@@ -96,6 +99,7 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
         inst_reg := io.icache.r.bits.data
         when(io.icache.r.bits.resp =/= AXI4LiteResp.OKAY) {
           exception_reg := IFUExceptionType.ifu_INSTRUCTION_ACCESS_FAULT
+          exceptionEn_reg := true.B
         }
       }
     }
@@ -108,7 +112,6 @@ class IFU(params: AXI4LiteParams) extends Module with HasCoreParameter {
       when(io.in.fire) {
         state := State.idle
         pc_reg := io.in.bits.dnpc
-        exception_reg := IFUExceptionType.ifu_X // 重置异常状态
       }
     }
   }
